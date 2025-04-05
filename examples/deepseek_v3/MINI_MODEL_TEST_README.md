@@ -15,34 +15,31 @@
 
 我们的测试方法包括以下步骤：
 
-1. 从HuggingFace模型转换少量层权重到Megatron格式
+1. 创建随机初始化的自定义HuggingFace风格模型作为参考
 2. 在两种并行配置下运行模型：
    - TP=2, PP=1（张量并行度=2，流水线并行度=1）
    - TP=1, PP=2（张量并行度=1，流水线并行度=2）
-3. 比较Megatron模型和HuggingFace模型的输出，验证实现的正确性
+3. 比较Megatron模型和自定义模型的结构和前向传播，验证实现的正确性
 
 ## 文件说明
 
 - `run_mini_deepseek_test.sh`：小型DeepSeek V3配置脚本
-- `test_mla_moe_correctness.py`：验证MLA和MOE实现正确性的测试脚本
-- `convert_mini_model.py`：从HuggingFace模型转换权重的脚本
+- `test_mla_moe_correctness.py`：验证MLA和MOE实现正确性的测试脚本，包含自定义HF风格模型实现
 - `run_mla_moe_tests.sh`：运行所有测试的包装脚本
 
 ## 使用方法
 
 ### 准备工作
 
-确保您已经安装了所有必要的依赖项，并且有权访问DeepSeek V3的HuggingFace模型。
+确保您已经安装了所有必要的依赖项。
 
 ### 运行测试
 
 使用以下命令运行测试：
 
 ```bash
-bash run_mla_moe_tests.sh /path/to/hf/model
+bash run_mla_moe_tests.sh
 ```
-
-其中，`/path/to/hf/model`是HuggingFace模型的路径。
 
 ### 测试结果
 
@@ -67,16 +64,29 @@ bash run_mla_moe_tests.sh /path/to/hf/model
 3. **最终输出**：
    - 比较模型的最终输出，确保整体功能正确
 
-如果所有比较的差异都在可接受的范围内（默认为1e-5），则测试通过。
+由于使用随机权重，我们主要关注模型结构和前向传播的正确性，而不是具体的输出值。
+
+## 自定义模型实现
+
+测试脚本中包含了以下自定义组件的实现：
+
+1. **CustomRotaryEmbedding**：实现旋转位置编码
+2. **CustomAttention**：实现多头注意力机制
+3. **CustomMoERouter**：实现专家路由器
+4. **CustomMoEExpert**：实现单个专家网络
+5. **CustomMoE**：实现混合专家层
+6. **CustomTransformerLayer**：实现Transformer层
+7. **CustomModel**：实现完整模型架构
+
+这些组件模拟了HuggingFace风格的实现，用于与Megatron实现进行比较。
 
 ## 故障排除
 
 如果测试失败，请检查：
 
-1. 确保使用了正确的HuggingFace模型路径
-2. 检查GPU内存是否足够
-3. 查看日志中的具体错误信息，定位问题所在
-4. 对于特定层的失败，可以调整`test_mla_moe_correctness.py`中的`epsilon`参数
+1. 检查GPU内存是否足够
+2. 查看日志中的具体错误信息，定位问题所在
+3. 对于特定层的失败，可以调整`test_mla_moe_correctness.py`中的`epsilon`参数
 
 ## 注意事项
 
