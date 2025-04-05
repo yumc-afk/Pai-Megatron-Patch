@@ -112,7 +112,7 @@ megatron_options="  \
     "
 
 echo "Running test script for validating MLA/MOE implementation..."
-run_cmd="torchrun $DISTRIBUTED_ARGS test_mla_moe_correctness.py ${megatron_options} ${moe_options} ${sp_option} --hf-model-path $4 --test-tp ${TP} --test-pp ${PP}"
+run_cmd="torchrun $DISTRIBUTED_ARGS test_mla_moe_correctness.py ${megatron_options} ${moe_options} ${sp_option} --test-tp ${TP} --test-pp ${PP}"
 
 echo ${run_cmd}
 eval ${run_cmd}
