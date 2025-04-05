@@ -6,9 +6,8 @@ import os
 import sys
 import torch
 import argparse
-import re
+import math
 from collections import defaultdict
-from transformers import AutoConfig, AutoModelForCausalLM
 
 path_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.path.join(path_dir, "examples"))
@@ -20,11 +19,6 @@ from megatron.training.checkpointing import get_checkpoint_name, get_checkpoint_
 
 def add_model_args(parser):
     group = parser.add_argument_group('DeepSeek-V3 Mini Test')
-    
-    group.add_argument('--hf-model-path', 
-                       type=str, 
-                       required=True,
-                       help='Path to HuggingFace model')
     
     group.add_argument('--target-tensor-model-parallel-size',
                        type=int,
@@ -58,27 +52,17 @@ def add_model_args(parser):
     
     return parser
 
-def convert_and_save_mini_model():
-    """转换HF模型到小型Megatron模型用于测试"""
+def create_random_mini_model():
+    """创建随机初始化的小型Megatron模型用于测试"""
     initialize_megatron(extra_args_provider=add_model_args)
     args = get_args()
     
-    print(f"Converting HuggingFace model from {args.hf_model_path}")
     print(f"Creating mini model with {args.num_target_layers} layers")
+    print(f"Configuration: hidden_size={args.hidden_size}, num_experts={args.num_experts}")
     
     os.makedirs(args.save_path, exist_ok=True)
     
-    print("Loading HuggingFace model...")
-    hf_config = AutoConfig.from_pretrained(args.hf_model_path)
-    hf_model = AutoModelForCausalLM.from_pretrained(
-        args.hf_model_path,
-        trust_remote_code=True,
-    )
-    
-    print("Creating Megatron model...")
-    mg_model = model_provider()
-    
-    print("Converting weights...")
+    print("Creating Megatron model with random weights...")
     
     args.tensor_model_parallel_size = args.target_tensor_model_parallel_size
     args.pipeline_model_parallel_size = args.target_pipeline_model_parallel_size
@@ -93,17 +77,17 @@ def convert_and_save_mini_model():
     
     state_dict = {}
     
-    print("Converting embedding layer...")
-    state_dict['embedding.word_embeddings.weight'] = hf_model.model.embed_tokens.weight.clone()
+    print("Creating random embedding layer...")
+    state_dict['embedding.word_embeddings.weight'] = torch.randn(
+        args.padded_vocab_size, args.hidden_size
+    ) * 0.02
     
-    print("Converting transformer layers...")
-    for dest_layer_idx in range(args.num_target_layers):
-        src_layer_idx = dest_layer_idx  # 从头开始选择层
-        
-        print(f"Converting layer {src_layer_idx} to layer {dest_layer_idx}")
+    print("Creating random transformer layers...")
+    for layer_idx in range(args.num_target_layers):
+        print(f"Creating layer {layer_idx}")
         
         pp_rank = 0
-        pp_layer_idx = dest_layer_idx
+        pp_layer_idx = layer_idx
         
         for rank, num_layers in enumerate(num_pp_layers):
             if pp_layer_idx < num_layers:
@@ -111,38 +95,55 @@ def convert_and_save_mini_model():
                 break
             pp_layer_idx -= num_layers
         
-        prefix = f"decoder.layers.{dest_layer_idx}."
-        state_dict[prefix + 'input_layernorm.weight'] = hf_model.model.layers[src_layer_idx].input_layernorm.weight.clone()
-        state_dict[prefix + 'pre_mlp_layernorm.weight'] = hf_model.model.layers[src_layer_idx].post_attention_layernorm.weight.clone()
+        prefix = f"decoder.layers.{layer_idx}."
+        state_dict[prefix + 'input_layernorm.weight'] = torch.ones(args.hidden_size)
+        state_dict[prefix + 'pre_mlp_layernorm.weight'] = torch.ones(args.hidden_size)
         
         prefix_attn = prefix + 'self_attention.'
         
-        state_dict[prefix_attn + 'query_key_value.weight'] = hf_model.model.layers[src_layer_idx].self_attn.q_proj.weight.clone()
-        state_dict[prefix_attn + 'query_key_value.bias'] = torch.zeros_like(hf_model.model.layers[src_layer_idx].self_attn.q_proj.weight[0])
+        qkv_size = args.num_attention_heads * args.kv_channels
+        state_dict[prefix_attn + 'query_key_value.weight'] = torch.randn(
+            qkv_size, args.hidden_size
+        ) * math.sqrt(2.0 / (5 * args.hidden_size))
+        state_dict[prefix_attn + 'query_key_value.bias'] = torch.zeros(qkv_size)
         
-        state_dict[prefix_attn + 'dense.weight'] = hf_model.model.layers[src_layer_idx].self_attn.o_proj.weight.clone()
+        state_dict[prefix_attn + 'dense.weight'] = torch.randn(
+            args.hidden_size, qkv_size
+        ) * math.sqrt(2.0 / (args.hidden_size + qkv_size))
         
-        if hasattr(hf_model.model.layers[src_layer_idx].mlp, 'experts'):
+        use_moe = layer_idx > 0  # 第一层使用普通FFN，其余层使用MOE
+        
+        if use_moe:
             prefix_mlp = prefix + 'mlp.'
             
-            state_dict[prefix_mlp + 'router.weight'] = hf_model.model.layers[src_layer_idx].mlp.gate.weight.clone()
+            state_dict[prefix_mlp + 'router.weight'] = torch.randn(
+                args.num_experts, args.hidden_size
+            ) * 0.01
             
             for expert_idx in range(args.num_experts):
-                if expert_idx < len(hf_model.model.layers[src_layer_idx].mlp.experts):
-                    expert = hf_model.model.layers[src_layer_idx].mlp.experts[expert_idx]
-                    
-                    state_dict[prefix_mlp + f'experts.{expert_idx}.fc1.weight'] = expert.w1.weight.clone()
-                    
-                    state_dict[prefix_mlp + f'experts.{expert_idx}.fc2.weight'] = expert.w2.weight.clone()
+                state_dict[prefix_mlp + f'experts.{expert_idx}.fc1.weight'] = torch.randn(
+                    args.ffn_hidden_size, args.hidden_size
+                ) * math.sqrt(2.0 / (args.hidden_size + args.ffn_hidden_size))
+                
+                state_dict[prefix_mlp + f'experts.{expert_idx}.fc2.weight'] = torch.randn(
+                    args.hidden_size, args.ffn_hidden_size
+                ) * math.sqrt(2.0 / (args.hidden_size + args.ffn_hidden_size))
         else:
             prefix_mlp = prefix + 'mlp.'
-            state_dict[prefix_mlp + 'fc1.weight'] = hf_model.model.layers[src_layer_idx].mlp.up_proj.weight.clone()
-            state_dict[prefix_mlp + 'fc2.weight'] = hf_model.model.layers[src_layer_idx].mlp.down_proj.weight.clone()
+            state_dict[prefix_mlp + 'fc1.weight'] = torch.randn(
+                args.ffn_hidden_size, args.hidden_size
+            ) * math.sqrt(2.0 / (args.hidden_size + args.ffn_hidden_size))
+            
+            state_dict[prefix_mlp + 'fc2.weight'] = torch.randn(
+                args.hidden_size, args.ffn_hidden_size
+            ) * math.sqrt(2.0 / (args.hidden_size + args.ffn_hidden_size))
     
-    state_dict['decoder.final_layernorm.weight'] = hf_model.model.norm.weight.clone()
-    state_dict['output_layer.weight'] = hf_model.lm_head.weight.clone()
+    state_dict['decoder.final_layernorm.weight'] = torch.ones(args.hidden_size)
+    state_dict['output_layer.weight'] = torch.randn(
+        args.padded_vocab_size, args.hidden_size
+    ) * 0.02
     
-    print(f"Saving converted model to {args.save_path}...")
+    print(f"Saving random model to {args.save_path}...")
     
     for tp_rank in range(args.tensor_model_parallel_size):
         for pp_rank in range(args.pipeline_model_parallel_size):
@@ -171,7 +172,7 @@ def convert_and_save_mini_model():
     with open(tracker_filename, 'w') as f:
         f.write('0\n')
     
-    print("Model conversion completed successfully!")
+    print("Random model creation completed successfully!")
     return 0
 
 def main():
@@ -179,7 +180,7 @@ def main():
     parser = add_model_args(parser)
     args = parser.parse_args()
     
-    return convert_and_save_mini_model()
+    return create_random_mini_model()
 
 if __name__ == "__main__":
     sys.exit(main())
