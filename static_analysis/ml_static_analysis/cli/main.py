@@ -81,11 +81,6 @@ def setup_argparse() -> argparse.ArgumentParser:
         help="Run JaxType tensor type analysis",
     )
     analyzer_group.add_argument(
-        "--pattern",
-        action="store_true",
-        help="Run pattern-based code analysis",
-    )
-    analyzer_group.add_argument(
         "--all",
         action="store_true",
         help="Run all analyzers",
@@ -237,7 +232,6 @@ def run_analyzers(
     run_pytea = args.pytea or args.all or (args.lite and config.is_analyzer_enabled("pytea"))
     run_pyassistant = args.pyassistant or args.all or (args.lite and config.is_analyzer_enabled("pyassistant"))
     run_jaxtype = args.jaxtype or args.all or (args.lite and config.is_analyzer_enabled("jaxtype"))
-    run_pattern = args.pattern or args.all
     
     if run_mypy:
         try:
@@ -303,21 +297,6 @@ def run_analyzers(
             print("Warning: JaxType analyzer not available.")
             results["JaxType"] = {"success": False, "error": "JaxType analyzer not available."}
     
-    if run_pattern:
-        try:
-            from ml_static_analysis.analyzers.pattern_analyzer import run_pattern_analysis
-            
-            print("Running pattern-based code analysis...")
-            pattern_results = run_pattern_analysis(
-                files,
-                config.get_analyzer_config("pattern_analysis"),
-                verbose=args.verbose,
-            )
-            
-            results["Pattern Analysis"] = pattern_results
-        except ImportError:
-            print("Warning: Pattern analyzer not available.")
-            results["Pattern Analysis"] = {"success": False, "error": "Pattern analyzer not available."}
     
     if args.autofix or args.autofix_dry_run:
         try:
@@ -355,12 +334,6 @@ def run_analyzers(
                     dry_run=args.autofix_dry_run,
                 )
             
-            if "Pattern Analysis" in results and results["Pattern Analysis"].get("success", False):
-                autofix_manager.apply_fixes(
-                    results["Pattern Analysis"],
-                    "pattern",
-                    dry_run=args.autofix_dry_run,
-                )
             
             if args.autofix_report:
                 fix_report = autofix_manager.generate_fix_report()
@@ -514,7 +487,6 @@ def main_lite() -> int:
     
     args.lite = True
     args.all = False
-    args.pattern = False
     
     config = AnalysisConfig(args.config, verbose=args.verbose)
     

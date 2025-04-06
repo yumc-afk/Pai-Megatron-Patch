@@ -109,12 +109,10 @@ class AnalyzerRegistry:
         
         from ml_static_analysis.analyzers.mypy_analyzer import MyPyAnalyzer
         from ml_static_analysis.analyzers.pytea_analyzer import PyTeaAnalyzer
-        from ml_static_analysis.analyzers.pattern_analyzer import PatternAnalyzer
         from ml_static_analysis.analyzers.jaxtype_analyzer import JaxTypeAnalyzer
         
         self.analyzers["MyPyAnalyzer"] = MyPyAnalyzer
         self.analyzers["PyTeaAnalyzer"] = PyTeaAnalyzer
-        self.analyzers["PatternAnalyzer"] = PatternAnalyzer
         self.analyzers["JaxTypeAnalyzer"] = JaxTypeAnalyzer
         
         try:
@@ -182,7 +180,6 @@ class AnalyzerRegistry:
             analyzer_name_map = {
                 "mypy": "MyPyAnalyzer",
                 "pytea": "PyTeaAnalyzer",
-                "pattern": "PatternAnalyzer",
                 "jaxtype": "JaxTypeAnalyzer",
                 "pyassistant": "PyAssistantAnalyzer"
             }

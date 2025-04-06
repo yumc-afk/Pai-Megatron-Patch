@@ -156,7 +156,35 @@ class PyTeaAnalyzer(BaseAnalyzer):
         
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+                content = f.read()
+                lines = content.splitlines()
+            
+            if "multi_latent_attention" in content.lower() or "mla" in content.lower():
+                findings.append({
+                    "line": 1,
+                    "severity": "info",
+                    "message": "MLA implementation detected, consider checking attention mask handling",
+                    "content": "File contains MLA implementation",
+                    "category": "mla_check",
+                })
+            
+            if "mixture_of_experts" in content.lower() or "moe" in content.lower() or "router" in content.lower():
+                findings.append({
+                    "line": 1,
+                    "severity": "info",
+                    "message": "MOE implementation detected, consider checking token routing logic",
+                    "content": "File contains MOE implementation",
+                    "category": "moe_check",
+                })
+            
+            if "tensor_parallel" in content.lower() or "pipeline_parallel" in content.lower():
+                findings.append({
+                    "line": 1,
+                    "severity": "info",
+                    "message": "Parallelism implementation detected, verify tensor shapes across devices",
+                    "content": "File contains parallelism implementation",
+                    "category": "parallelism_check",
+                })
             
             for i, line in enumerate(lines):
                 line_num = i + 1
@@ -210,6 +238,26 @@ class PyTeaAnalyzer(BaseAnalyzer):
                             "content": line.strip(),
                             "category": "broadcasting",
                         })
+                
+                if "multi_latent_attention" in line.lower() or "mla" in line.lower():
+                    if "mask" in line.lower() and not re.search(r"if.*mask", line) and not re.search(r"assert.*mask", lines[i-1] if i > 0 else ""):
+                        findings.append({
+                            "line": line_num,
+                            "severity": "warning",
+                            "message": "MLA attention mask handling without proper validation",
+                            "content": line.strip(),
+                            "category": "mla_check",
+                        })
+                
+                if "router" in line.lower() and "topk" in line.lower():
+                    if not re.search(r"assert.*topk", lines[i-1] if i > 0 else ""):
+                        findings.append({
+                            "line": line_num,
+                            "severity": "warning",
+                            "message": "MOE router topk parameter without validation",
+                            "content": line.strip(),
+                            "category": "moe_check",
+                        })
             
             return findings
         except Exception as e:
@@ -261,7 +309,7 @@ class PyTeaAnalyzer(BaseAnalyzer):
         Returns:
             An AnalysisReport object containing the analysis results.
         """
-        report = AnalysisReport()
+        report = AnalysisReport("PyTea")
         
         if hasattr(self.config, "target_file") and self.config.target_file:
             files = [self.config.target_file]
@@ -290,15 +338,13 @@ class PyTeaAnalyzer(BaseAnalyzer):
                 line = finding.get("line", 0)
                 category = finding.get("category", "other")
                 
-                report.add_finding(
-                    analyzer=self.name,
-                    file_path=file_path,
-                    line=line,
-                    message=message,
-                    severity=severity,
-                    category=category,
-                    content=finding.get("content", ""),
-                )
+                finding_dict = {
+                    "line": line,
+                    "message": message,
+                    "severity": str(severity),
+                    "content": finding.get("content", "")
+                }
+                report.add_finding(file_path, category, finding_dict)
         
         return report
 

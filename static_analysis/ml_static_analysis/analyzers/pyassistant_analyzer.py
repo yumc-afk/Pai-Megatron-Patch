@@ -7,6 +7,8 @@ import tempfile
 from typing import Dict, List, Optional, Any, Union
 
 from ml_static_analysis.core.analyzer import BaseAnalyzer
+from ml_static_analysis.core.config import AnalysisConfig
+from ml_static_analysis.core.report import AnalysisReport
 
 
 class PyAssistantAnalyzer(BaseAnalyzer):
@@ -16,21 +18,49 @@ class PyAssistantAnalyzer(BaseAnalyzer):
     potential issues related to ML code quality.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None, verbose: bool = False):
+    def analyze(self) -> AnalysisReport:
+        """Analyze the target specified in the configuration.
+        
+        This method is required by the BaseAnalyzer abstract class.
+        
+        Returns:
+            An AnalysisReport object containing the analysis results.
+        """
+        target_dir = self.config.target_dir if hasattr(self.config, 'target_dir') else None
+        target_file = self.config.target_file if hasattr(self.config, 'target_file') else None
+        
+        if target_file:
+            results = self.analyze_file(target_file)
+        elif target_dir:
+            files = []
+            for root, _, filenames in os.walk(target_dir):
+                for filename in filenames:
+                    if filename.endswith('.py'):
+                        files.append(os.path.join(root, filename))
+            results = self.analyze_files(files)
+        else:
+            results = {
+                "success": False,
+                "error": "No target specified in configuration",
+            }
+        
+        report = AnalysisReport("PyAssistant")
+        report.add_analyzer_results("PyAssistant", results)
+        return report
+    
+    def __init__(self, config: AnalysisConfig):
         """Initialize the PyAssistant analyzer.
         
         Args:
-            config: Configuration for the analyzer.
-            verbose: Whether to enable verbose output.
+            config: Analysis configuration.
         """
-        super().__init__(verbose=verbose)
+        super().__init__(config)
         
-        self.config = config or {}
-        self.severity_threshold = self.config.get("severity_threshold", "info")
-        self.check_thread_safety = self.config.get("check_thread_safety", True)
-        self.check_error_handling = self.config.get("check_error_handling", True)
-        self.check_performance = self.config.get("check_performance", True)
-        self.check_weight_switching = self.config.get("check_weight_switching", True)
+        self.severity_threshold = config.pyassistant_severity_threshold if hasattr(config, 'pyassistant_severity_threshold') else "info"
+        self.check_thread_safety = config.pyassistant_check_thread_safety if hasattr(config, 'pyassistant_check_thread_safety') else True
+        self.check_error_handling = config.pyassistant_check_error_handling if hasattr(config, 'pyassistant_check_error_handling') else True
+        self.check_performance = config.pyassistant_check_performance if hasattr(config, 'pyassistant_check_performance') else True
+        self.check_weight_switching = config.pyassistant_check_weight_switching if hasattr(config, 'pyassistant_check_weight_switching') else True
     
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze a single file using PyAssistant.
