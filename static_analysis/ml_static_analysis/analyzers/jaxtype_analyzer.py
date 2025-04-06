@@ -1,4 +1,7 @@
-"""JaxType analyzer for ML static analysis framework."""
+"""JaxType analyzer for ML static analysis framework.
+
+This analyzer uses JaxType with beartype for enhanced tensor type checking.
+"""
 
 import os
 import re
@@ -30,6 +33,7 @@ class JaxTypeAnalyzer(BaseAnalyzer):
         self.check_shapes = config.jaxtype_check_shapes if hasattr(config, "jaxtype_check_shapes") else True
         self.check_dtypes = config.jaxtype_check_dtypes if hasattr(config, "jaxtype_check_dtypes") else True
         self.check_devices = config.jaxtype_check_devices if hasattr(config, "jaxtype_check_devices") else True
+        self.use_beartype = config.jaxtype_use_beartype if hasattr(config, "jaxtype_use_beartype") else True
     
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze a single file using JaxType.
@@ -75,6 +79,17 @@ class JaxTypeAnalyzer(BaseAnalyzer):
         try:
             try:
                 import jaxtyping
+                if self.use_beartype:
+                    try:
+                        import beartype
+                        from beartype.vale import Is
+                        has_beartype = True
+                    except ImportError:
+                        has_beartype = False
+                        if self.verbose:
+                            print("Beartype is not installed. For enhanced type checking, install it with 'pip install beartype'.")
+                else:
+                    has_beartype = False
             except ImportError:
                 return {
                     "success": False,
@@ -98,6 +113,7 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                 "success": True,
                 "summary": summary,
                 "findings": findings,
+                "has_beartype": has_beartype
             }
         finally:
             os.unlink(config_path)
@@ -118,7 +134,19 @@ class JaxTypeAnalyzer(BaseAnalyzer):
             if self.verbose:
                 print(f"Running JaxType on {file_path}")
             
-            findings = self._simulate_jaxtype_analysis(file_path)
+            if self.use_beartype:
+                try:
+                    import beartype
+                    from beartype.vale import Is
+                    has_beartype = True
+                    if self.verbose:
+                        print(f"Using JaxType with beartype for enhanced type checking")
+                except ImportError:
+                    has_beartype = False
+            else:
+                has_beartype = False
+            
+            findings = self._simulate_jaxtype_analysis(file_path, has_beartype)
             
             return findings
         except Exception as e:
@@ -127,7 +155,7 @@ class JaxTypeAnalyzer(BaseAnalyzer):
             
             return []
     
-    def _simulate_jaxtype_analysis(self, file_path: str) -> List[Dict[str, Any]]:
+    def _simulate_jaxtype_analysis(self, file_path: str, has_beartype: bool = False) -> List[Dict[str, Any]]:
         """Simulate JaxType analysis on a file.
         
         This is a simplified version of what JaxType would do. In a real implementation,
@@ -135,6 +163,7 @@ class JaxTypeAnalyzer(BaseAnalyzer):
         
         Args:
             file_path: Path to the file to analyze.
+            has_beartype: Whether beartype is available for enhanced type checking.
             
         Returns:
             A list of findings.
@@ -147,12 +176,15 @@ class JaxTypeAnalyzer(BaseAnalyzer):
             
             has_jaxtype_import = False
             has_array_import = False
+            has_beartype_import = False
             
             for i, line in enumerate(lines):
                 if "import jaxtyping" in line or "from jaxtyping import" in line:
                     has_jaxtype_import = True
                     if "Array" in line:
                         has_array_import = True
+                if "import beartype" in line or "from beartype import" in line:
+                    has_beartype_import = True
             
             for i, line in enumerate(lines):
                 line_num = i + 1
@@ -228,6 +260,15 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                             "category": "missing_import",
                         })
                         break
+            
+            if has_jaxtype_import and not has_beartype_import and has_beartype:
+                findings.append({
+                    "line": 1,
+                    "severity": "info",
+                    "message": "Consider using beartype with JaxType for runtime type checking",
+                    "content": lines[0].strip() if lines else "",
+                    "category": "missing_import",
+                })
             
             return findings
         except Exception as e:

@@ -66,7 +66,12 @@ class ReportGenerator:
         if os.path.exists(latest_report_path):
             os.remove(latest_report_path)
         
-        os.symlink(report_path, latest_report_path)
+        try:
+            os.symlink(report_path, latest_report_path)
+        except Exception as e:
+            logger.warning(f"创建符号链接失败: {e}")
+            import shutil
+            shutil.copy2(report_path, latest_report_path)
         
         logger.info(f"报告已生成: {report_path}")
         return report_path
@@ -102,14 +107,14 @@ class ReportGenerator:
             lines.append("")
             
             if report.summary:
-                lines.append(f"### 摘要")
+                lines.append(f"### {analyzer_name} 摘要")
                 lines.append("")
                 lines.append(str(report.summary))
                 lines.append("")
             
             errors = report.get_errors()
             if errors:
-                lines.append(f"### 错误 ({len(errors)})")
+                lines.append(f"### {analyzer_name} 错误 ({len(errors)})")
                 lines.append("")
                 for error in errors:
                     code = error.get("code", "")
@@ -126,7 +131,7 @@ class ReportGenerator:
             
             warnings = report.get_warnings()
             if warnings:
-                lines.append(f"### 警告 ({len(warnings)})")
+                lines.append(f"### {analyzer_name} 警告 ({len(warnings)})")
                 lines.append("")
                 for warning in warnings:
                     code = warning.get("code", "")
@@ -143,7 +148,7 @@ class ReportGenerator:
             
             suggestions = report.get_suggestions()
             if suggestions:
-                lines.append(f"### 建议 ({len(suggestions)})")
+                lines.append(f"### {analyzer_name} 建议 ({len(suggestions)})")
                 lines.append("")
                 for suggestion in suggestions:
                     code = suggestion.get("code", "")

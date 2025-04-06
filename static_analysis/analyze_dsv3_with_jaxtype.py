@@ -16,7 +16,6 @@ sys.path.append(current_dir)
 
 from ml_static_analysis.analyzers.jaxtype_analyzer import JaxTypeAnalyzer
 from ml_static_analysis.analyzers.mypy_analyzer import MyPyAnalyzer
-from ml_static_analysis.analyzers.pattern_analyzer import PatternAnalyzer
 from ml_static_analysis.analyzers.pytea_analyzer import PyTeaAnalyzer
 from ml_static_analysis.core.config import AnalysisConfig
 from ml_static_analysis.core.report import AnalysisReport
@@ -114,42 +113,31 @@ def analyze_with_mypy(files: List[str], verbose: bool = False) -> Dict[str, Any]
     return analyzer.analyze_files(files)
 
 
-def analyze_with_pattern(files: List[str], verbose: bool = False) -> Dict[str, Any]:
-    """使用模式分析器分析文件"""
-    print(f"使用模式分析器分析{len(files)}个文件...")
+def analyze_with_pyassistant(files: List[str], verbose: bool = False) -> Dict[str, Any]:
+    """使用PyAssistant分析器分析文件"""
+    print(f"使用PyAssistant分析{len(files)}个文件...")
     
     config = AnalysisConfig()
-    config.pattern_patterns = [
-        {
-            "name": "tensor_device_mismatch",
-            "regex": r"\.to\(.*device.*\)",
-            "description": "可能的张量设备不匹配",
-            "severity": "warning",
-        },
-        {
-            "name": "unchecked_tensor_shape",
-            "regex": r"(reshape|view|permute|transpose)\(",
-            "description": "未检查的张量形状操作",
-            "severity": "warning",
-        },
-        {
-            "name": "moe_routing_issue",
-            "regex": r"(router|dispatch|combine).*token",
-            "description": "MOE路由相关操作",
-            "severity": "info",
-        },
-        {
-            "name": "mla_attention_issue",
-            "regex": r"multi_latent_attention|mla",
-            "description": "MLA注意力相关操作",
-            "severity": "info",
-        },
-    ]
+    config.pyassistant_max_issues = 100
     config.verbose = verbose
     
-    analyzer = PatternAnalyzer(config)
-    
-    return analyzer.analyze_files(files)
+    try:
+        from ml_static_analysis.analyzers.pyassistant_analyzer import PyAssistantAnalyzer
+        analyzer = PyAssistantAnalyzer(config)
+        return analyzer.analyze_files(files)
+    except ImportError as e:
+        print(f"PyAssistant分析器导入失败: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "summary": {
+                "analyzed_files": 0,
+                "total_findings": 0,
+                "findings_by_category": {},
+                "findings_by_severity": {},
+            },
+            "findings": {},
+        }
 
 
 def analyze_with_pytea(files: List[str], verbose: bool = False) -> Dict[str, Any]:
@@ -169,7 +157,7 @@ def analyze_with_pytea(files: List[str], verbose: bool = False) -> Dict[str, Any
 def generate_report(
     jaxtype_results: Dict[str, Any],
     mypy_results: Dict[str, Any],
-    pattern_results: Dict[str, Any],
+    pyassistant_results: Dict[str, Any],
     pytea_results: Dict[str, Any],
     output_path: str,
     files: List[str] = None,
@@ -195,15 +183,21 @@ def generate_report(
         mypy_report.add_analyzer_results("MyPy", mypy_results)
         analysis_results["MyPy"] = mypy_report
     
-    if pattern_results.get("success", False):
-        pattern_report = AnalysisReport("Pattern")
-        pattern_report.add_analyzer_results("Pattern", pattern_results)
-        analysis_results["Pattern"] = pattern_report
+    if pyassistant_results.get("success", False):
+        pyassistant_report = AnalysisReport("PyAssistant")
+        pyassistant_report.add_analyzer_results("PyAssistant", pyassistant_results)
+        analysis_results["PyAssistant"] = pyassistant_report
     
     if pytea_results.get("success", False):
         pytea_report = AnalysisReport("PyTea")
         pytea_report.add_analyzer_results("PyTea", pytea_results)
         analysis_results["PyTea"] = pytea_report
+    
+    for analyzer_name, report in analysis_results.items():
+        print(f"处理 {analyzer_name} 分析结果...")
+        print(f"  - 错误数: {len(report.get_errors())}")
+        print(f"  - 警告数: {len(report.get_warnings())}")
+        print(f"  - 建议数: {len(report.get_suggestions())}")
     
     report_path = report_generator.generate_report(
         analysis_results=analysis_results,
@@ -212,8 +206,6 @@ def generate_report(
     )
     
     print(f"报告已保存到 {report_path}")
-    
-    print(f"分析报告已生成到{output_path}")
     
     if verbose:
         print("\n分析摘要:")
@@ -231,7 +223,7 @@ def generate_report(
 def apply_autofix(
     jaxtype_results: Dict[str, Any],
     mypy_results: Dict[str, Any],
-    pattern_results: Dict[str, Any],
+    pyassistant_results: Dict[str, Any],
     pytea_results: Dict[str, Any],
     verbose: bool = False
 ) -> Dict[str, Any]:
@@ -251,8 +243,8 @@ def apply_autofix(
     if mypy_results.get("success", False):
         report.add_analyzer_results("MyPy", mypy_results)
     
-    if pattern_results.get("success", False):
-        report.add_analyzer_results("Pattern", pattern_results)
+    if pyassistant_results.get("success", False):
+        report.add_analyzer_results("PyAssistant", pyassistant_results)
     
     if pytea_results.get("success", False):
         report.add_analyzer_results("PyTea", pytea_results)
@@ -287,32 +279,7 @@ def main():
     config.mypy_disallow_untyped_defs = False
     config.mypy_disallow_incomplete_defs = False
     
-    config.pattern_patterns = [
-        {
-            "name": "tensor_device_mismatch",
-            "regex": r"\.to\(.*device.*\)",
-            "description": "可能的张量设备不匹配",
-            "severity": "warning",
-        },
-        {
-            "name": "unchecked_tensor_shape",
-            "regex": r"(reshape|view|permute|transpose)\(",
-            "description": "未检查的张量形状操作",
-            "severity": "warning",
-        },
-        {
-            "name": "moe_routing_issue",
-            "regex": r"(router|dispatch|combine).*token",
-            "description": "MOE路由相关操作",
-            "severity": "info",
-        },
-        {
-            "name": "mla_attention_issue",
-            "regex": r"multi_latent_attention|mla",
-            "description": "MLA注意力相关操作",
-            "severity": "info",
-        },
-    ]
+    config.pyassistant_max_issues = 100
     
     config.pytea_max_depth = 5
     config.pytea_timeout = 60
@@ -324,7 +291,7 @@ def main():
     
     mypy_results = analyze_with_mypy(files, args.verbose)
     
-    pattern_results = analyze_with_pattern(files, args.verbose)
+    pyassistant_results = analyze_with_pyassistant(files, args.verbose)
     
     pytea_results = analyze_with_pytea(files, args.verbose)
     
@@ -332,7 +299,7 @@ def main():
         fix_results = apply_autofix(
             jaxtype_results,
             mypy_results,
-            pattern_results,
+            pyassistant_results,
             pytea_results,
             args.verbose
         )
@@ -340,13 +307,13 @@ def main():
         print("\n重新分析修复后的文件...")
         jaxtype_results = analyze_with_jaxtype(files, args.verbose)
         mypy_results = analyze_with_mypy(files, args.verbose)
-        pattern_results = analyze_with_pattern(files, args.verbose)
+        pyassistant_results = analyze_with_pyassistant(files, args.verbose)
         pytea_results = analyze_with_pytea(files, args.verbose)
     
     generate_report(
         jaxtype_results,
         mypy_results,
-        pattern_results,
+        pyassistant_results,
         pytea_results,
         args.output,
         files=files,
