@@ -60,7 +60,7 @@ pip install ml-static-analysis[lite]
 Alternatively, you can install from source:
 
 ```bash
-git clone https://github.com/haoweiliang1996/Pai-Megatron-Patch.git
+git clone https://github.com/yumc-afk/Pai-Megatron-Patch.git
 cd Pai-Megatron-Patch/static_analysis
 pip install -e .
 ```

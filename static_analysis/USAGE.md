@@ -23,7 +23,7 @@
 
 ```bash
 # 克隆仓库（如果尚未克隆）
-git clone https://github.com/haoweiliang1996/Pai-Megatron-Patch.git
+git clone https://github.com/yumc-afk/Pai-Megatron-Patch.git
 cd Pai-Megatron-Patch
 
 # 安装静态分析工具
