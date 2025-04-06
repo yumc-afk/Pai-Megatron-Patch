@@ -197,11 +197,11 @@ The framework includes the following analyzers:
 - **MyPy**: Static type checking for Python
 - **PyTea**: Tensor shape analysis for PyTorch
 - **PyAssistant**: Code quality analysis for Python
-- **TorchTyping**: Tensor type analysis for PyTorch
+- **JaxType**: Tensor type analysis for PyTorch (替代TorchTyping的现代选择)
 - **Pattern Analysis**: Pattern-based code analysis for common issues
 - **AutoFix**: Automatic fixing of issues detected by other analyzers
 
-In lite mode, only the core analyzers (MyPy, PyTea, PyAssistant, TorchTyping) are available.
+在精简版中，只有核心分析器（MyPy、PyTea、PyAssistant、JaxType）可用。
 
 ## Auto-Fix Functionality
 
@@ -277,7 +277,7 @@ For more information, see the [Auto-Fix Guide](AUTOFIX_GUIDE.md).
 results = analyze_component(
     component="mla",
     component_dir="/path/to/mla",
-    analyzers=["pytea", "torchtyping"],
+    analyzers=["pytea", "jaxtype"],
 )
 ```
 
@@ -287,7 +287,7 @@ results = analyze_component(
 results = analyze_component(
     component="moe",
     component_dir="/path/to/moe",
-    analyzers=["pytea", "torchtyping", "pattern"],
+    analyzers=["pytea", "jaxtype", "pattern"],
 )
 ```
 
