@@ -26,6 +26,9 @@
 - `run_mini_deepseek_test.sh`：小型DeepSeek V3配置脚本
 - `test_mla_moe_correctness.py`：验证MLA和MOE实现正确性的测试脚本，包含自定义HF风格模型实现
 - `run_mla_moe_tests.sh`：运行所有测试的包装脚本
+- `test_mla_moe_cpu.py`：在CPU上验证MLA和MOE组件的测试脚本
+- `test_mla_moe_cpu_simple.py`：简化版CPU测试脚本，更加稳健
+- `run_cpu_tests.sh`：运行CPU测试的包装脚本
 
 ## 使用方法
 
@@ -35,22 +38,34 @@
 
 ### 运行测试
 
-使用以下命令运行测试：
+#### GPU测试
+
+使用以下命令在GPU上运行测试：
 
 ```bash
 bash run_mla_moe_tests.sh
 ```
-
-### 测试结果
 
 测试结果将保存在`mini_model_test_results`目录中，包括：
 
 - `tp2_pp1_test.log`：TP=2, PP=1配置的测试日志
 - `tp1_pp2_test.log`：TP=1, PP=2配置的测试日志
 
+#### CPU测试
+
+在没有GPU的环境中，可以使用以下命令在CPU上验证MLA和MOE组件的基本功能：
+
+```bash
+bash run_cpu_tests.sh
+```
+
+CPU测试结果将保存在`cpu_test_results.log`文件中。
+
 ## 验证标准
 
-测试脚本会比较以下组件的输出：
+### GPU测试验证标准
+
+GPU测试脚本会比较以下组件的输出：
 
 1. **MLA（Multi-Latent Attention）**：
    - 比较每一层的注意力输出
@@ -63,6 +78,30 @@ bash run_mla_moe_tests.sh
 
 3. **最终输出**：
    - 比较模型的最终输出，确保整体功能正确
+
+### CPU测试验证标准
+
+CPU测试脚本会验证以下组件的基本功能：
+
+1. **旋转位置编码（RotaryEmbedding）**：
+   - 验证位置编码计算的正确性
+   - 确保输出形状正确且不包含NaN或Inf值
+
+2. **多潜在注意力（MLA Attention）**：
+   - 验证注意力计算的正确性
+   - 确保注意力分数和上下文向量计算正确
+
+3. **MOE路由器（MOE Router）**：
+   - 验证路由逻辑和专家选择的正确性
+   - 确保路由概率和为1且不包含NaN或Inf值
+
+4. **MOE专家（MOE Expert）**：
+   - 验证专家网络前向传播的正确性
+   - 确保输出形状正确且不包含NaN或Inf值
+
+5. **MOE调度（MOE Dispatch）**：
+   - 验证专家输出组合的正确性
+   - 确保最终输出形状正确且不包含NaN或Inf值
 
 由于使用随机权重，我们主要关注模型结构和前向传播的正确性，而不是具体的输出值。
 
