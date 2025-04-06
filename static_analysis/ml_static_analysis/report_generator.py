@@ -45,6 +45,13 @@ class ReportGenerator:
         Returns:
             str: 报告文件路径
         """
+        logger.info(f"生成分析报告，分析器: {', '.join(analysis_results.keys())}")
+        for analyzer_name, report in analysis_results.items():
+            logger.info(f"处理 {analyzer_name} 分析结果...")
+            logger.info(f"  - 错误数: {len(report.get_errors())}")
+            logger.info(f"  - 警告数: {len(report.get_warnings())}")
+            logger.info(f"  - 建议数: {len(report.get_suggestions())}")
+        
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         report_filename = f"analysis_report_{timestamp}.{format}"
         report_path = os.path.join(self.reports_dir, report_filename)
@@ -162,6 +169,59 @@ class ReportGenerator:
                     if line:
                         lines.append(f"  - 行号: {line}")
                     lines.append("")
+            
+            findings = report.findings
+            if findings:
+                lines.append(f"### {analyzer_name} 详细发现")
+                lines.append("")
+                
+                for file_path, file_findings in findings.items():
+                    if isinstance(file_findings, dict):
+                        lines.append(f"#### 文件: `{os.path.basename(file_path)}`")
+                        lines.append("")
+                        
+                        for category, category_findings in file_findings.items():
+                            lines.append(f"**{category.replace('_', ' ').title()}**")
+                            lines.append("")
+                            
+                            if isinstance(category_findings, list):
+                                for finding in category_findings:
+                                    message = finding.get("message", "")
+                                    line_num = finding.get("line", 0)
+                                    severity = finding.get("severity", "info")
+                                    content = finding.get("content", "")
+                                    
+                                    severity_marker = "ℹ️" if severity == "info" else "⚠️" if severity == "warning" else "❌"
+                                    lines.append(f"- {severity_marker} 行 {line_num}: {message}")
+                                    if content:
+                                        lines.append(f"  `{content}`")
+                                    lines.append("")
+                            else:
+                                message = category_findings.get("message", "")
+                                line_num = category_findings.get("line", 0)
+                                severity = category_findings.get("severity", "info")
+                                content = category_findings.get("content", "")
+                                
+                                severity_marker = "ℹ️" if severity == "info" else "⚠️" if severity == "warning" else "❌"
+                                lines.append(f"- {severity_marker} 行 {line_num}: {message}")
+                                if content:
+                                    lines.append(f"  `{content}`")
+                                lines.append("")
+                    elif isinstance(file_findings, list):
+                        lines.append(f"#### 文件: `{os.path.basename(file_path)}`")
+                        lines.append("")
+                        
+                        for finding in file_findings:
+                            message = finding.get("message", "")
+                            line_num = finding.get("line", 0)
+                            severity = finding.get("severity", "info")
+                            content = finding.get("content", "")
+                            
+                            severity_marker = "ℹ️" if severity == "info" else "⚠️" if severity == "warning" else "❌"
+                            lines.append(f"- {severity_marker} 行 {line_num}: {message}")
+                            if content:
+                                lines.append(f"  `{content}`")
+                            lines.append("")
         
         if hasattr(self.config, 'autofix_enabled') and self.config.autofix_enabled:
             lines.append("## 自动修复建议")
