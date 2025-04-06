@@ -178,34 +178,32 @@ def generate_report(
     """生成分析报告"""
     print(f"生成分析报告到{output_path}...")
     
-    report = AnalysisReport("MultiAnalyzer")
-    
-    if jaxtype_results.get("success", False):
-        report.add_analyzer_results("JaxType", jaxtype_results)
-    
-    if mypy_results.get("success", False):
-        report.add_analyzer_results("MyPy", mypy_results)
-    
-    if pattern_results.get("success", False):
-        report.add_analyzer_results("Pattern", pattern_results)
-    
-    if pytea_results.get("success", False):
-        report.add_analyzer_results("PyTea", pytea_results)
-    
     config = AnalysisConfig()
     config.verbose = verbose
     
     report_generator = ReportGenerator(config)
     
     analysis_results = {}
+    
     if jaxtype_results.get("success", False):
-        analysis_results["JaxType"] = report
+        jaxtype_report = AnalysisReport("JaxType")
+        jaxtype_report.add_analyzer_results("JaxType", jaxtype_results)
+        analysis_results["JaxType"] = jaxtype_report
+    
     if mypy_results.get("success", False):
-        analysis_results["MyPy"] = report
+        mypy_report = AnalysisReport("MyPy")
+        mypy_report.add_analyzer_results("MyPy", mypy_results)
+        analysis_results["MyPy"] = mypy_report
+    
     if pattern_results.get("success", False):
-        analysis_results["Pattern"] = report
+        pattern_report = AnalysisReport("Pattern")
+        pattern_report.add_analyzer_results("Pattern", pattern_results)
+        analysis_results["Pattern"] = pattern_report
+    
     if pytea_results.get("success", False):
-        analysis_results["PyTea"] = report
+        pytea_report = AnalysisReport("PyTea")
+        pytea_report.add_analyzer_results("PyTea", pytea_results)
+        analysis_results["PyTea"] = pytea_report
     
     report_path = report_generator.generate_report(
         analysis_results=analysis_results,
@@ -219,10 +217,15 @@ def generate_report(
     
     if verbose:
         print("\n分析摘要:")
-        print(f"- 总发现问题数: {report.get_total_findings_count()}")
-        print(f"- 错误数: {len(report.get_errors())}")
-        print(f"- 警告数: {len(report.get_warnings())}")
-        print(f"- 建议数: {len(report.get_suggestions())}")
+        total_findings = sum(report.get_total_findings_count() for report in analysis_results.values())
+        total_errors = sum(len(report.get_errors()) for report in analysis_results.values())
+        total_warnings = sum(len(report.get_warnings()) for report in analysis_results.values())
+        total_suggestions = sum(len(report.get_suggestions()) for report in analysis_results.values())
+        
+        print(f"- 总发现问题数: {total_findings}")
+        print(f"- 错误数: {total_errors}")
+        print(f"- 警告数: {total_warnings}")
+        print(f"- 建议数: {total_suggestions}")
 
 
 def apply_autofix(
