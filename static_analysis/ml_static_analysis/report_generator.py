@@ -1,0 +1,301 @@
+#
+#
+#
+
+"""
+报告生成器模块，用于生成静态分析报告
+"""
+
+import os
+import json
+import datetime
+import logging
+from typing import Dict, List, Any, Optional, Union
+
+from ml_static_analysis.core.config import AnalysisConfig
+from ml_static_analysis.core.report import AnalysisReport, AnalysisWarning
+
+logger = logging.getLogger(__name__)
+
+class ReportGenerator:
+    """静态分析报告生成器"""
+    
+    def __init__(self, config: AnalysisConfig):
+        """
+        初始化报告生成器
+        
+        Args:
+            config: 分析配置
+        """
+        self.config = config
+        self.reports_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")
+        os.makedirs(self.reports_dir, exist_ok=True)
+    
+    def generate_report(self, analysis_results: Dict[str, AnalysisReport], 
+                        target_path: str, 
+                        format: str = "markdown") -> str:
+        """
+        生成分析报告
+        
+        Args:
+            analysis_results: 分析结果字典，键为分析器名称，值为分析报告
+            target_path: 分析目标路径
+            format: 报告格式，支持 "markdown", "json", "html"
+            
+        Returns:
+            str: 报告文件路径
+        """
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_filename = f"analysis_report_{timestamp}.{format}"
+        report_path = os.path.join(self.reports_dir, report_filename)
+        
+        latest_report_path = os.path.join(self.reports_dir, f"latest_report.{format}")
+        
+        if format == "markdown":
+            content = self._generate_markdown_report(analysis_results, target_path)
+        elif format == "json":
+            content = self._generate_json_report(analysis_results, target_path)
+        elif format == "html":
+            content = self._generate_html_report(analysis_results, target_path)
+        else:
+            raise ValueError(f"不支持的报告格式: {format}")
+        
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        
+        if os.path.exists(latest_report_path):
+            os.remove(latest_report_path)
+        
+        os.symlink(report_path, latest_report_path)
+        
+        logger.info(f"报告已生成: {report_path}")
+        return report_path
+    
+    def _generate_markdown_report(self, analysis_results: Dict[str, AnalysisReport], target_path: str) -> str:
+        """生成Markdown格式的报告"""
+        lines = []
+        
+        lines.append("# PyTorch LLM 分布式训练静态分析报告")
+        lines.append("")
+        
+        lines.append("## 分析元数据")
+        lines.append("")
+        lines.append(f"- **分析时间**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"- **分析目标**: `{target_path}`")
+        lines.append(f"- **分析器**: {', '.join(analysis_results.keys())}")
+        lines.append("")
+        
+        lines.append("## 分析摘要")
+        lines.append("")
+        
+        total_warnings = sum(len(report.warnings) for report in analysis_results.values())
+        total_errors = sum(len(report.errors) for report in analysis_results.values())
+        total_suggestions = sum(len(report.suggestions) for report in analysis_results.values())
+        
+        lines.append(f"- **总警告数**: {total_warnings}")
+        lines.append(f"- **总错误数**: {total_errors}")
+        lines.append(f"- **总建议数**: {total_suggestions}")
+        lines.append("")
+        
+        for analyzer_name, report in analysis_results.items():
+            lines.append(f"## {analyzer_name} 分析结果")
+            lines.append("")
+            
+            if report.summary:
+                lines.append(f"### 摘要")
+                lines.append("")
+                lines.append(report.summary)
+                lines.append("")
+            
+            if report.errors:
+                lines.append(f"### 错误 ({len(report.errors)})")
+                lines.append("")
+                for error in report.errors:
+                    lines.append(f"- **{error.code}**: {error.message}")
+                    if error.file_path:
+                        lines.append(f"  - 文件: `{error.file_path}`")
+                    if error.line_number:
+                        lines.append(f"  - 行号: {error.line_number}")
+                    if error.suggestion:
+                        lines.append(f"  - 建议: {error.suggestion}")
+                    lines.append("")
+            
+            if report.warnings:
+                lines.append(f"### 警告 ({len(report.warnings)})")
+                lines.append("")
+                for warning in report.warnings:
+                    lines.append(f"- **{warning.code}**: {warning.message}")
+                    if warning.file_path:
+                        lines.append(f"  - 文件: `{warning.file_path}`")
+                    if warning.line_number:
+                        lines.append(f"  - 行号: {warning.line_number}")
+                    if warning.suggestion:
+                        lines.append(f"  - 建议: {warning.suggestion}")
+                    lines.append("")
+            
+            if report.suggestions:
+                lines.append(f"### 建议 ({len(report.suggestions)})")
+                lines.append("")
+                for suggestion in report.suggestions:
+                    lines.append(f"- **{suggestion.code}**: {suggestion.message}")
+                    if suggestion.file_path:
+                        lines.append(f"  - 文件: `{suggestion.file_path}`")
+                    if suggestion.line_number:
+                        lines.append(f"  - 行号: {suggestion.line_number}")
+                    lines.append("")
+        
+        if self.config.autofix_enabled:
+            lines.append("## 自动修复建议")
+            lines.append("")
+            
+            autofix_count = 0
+            for report in analysis_results.values():
+                for item in report.errors + report.warnings:
+                    if item.can_autofix:
+                        autofix_count += 1
+            
+            if autofix_count > 0:
+                lines.append(f"发现 {autofix_count} 个可自动修复的问题。")
+                lines.append("运行以下命令应用自动修复:")
+                lines.append("")
+                lines.append("```bash")
+                lines.append(f"ml-analyze --target {target_path} --autofix")
+                lines.append("```")
+                lines.append("")
+                lines.append("或者运行以下命令查看修复建议而不应用:")
+                lines.append("")
+                lines.append("```bash")
+                lines.append(f"ml-analyze --target {target_path} --autofix-dry-run")
+                lines.append("```")
+            else:
+                lines.append("未发现可自动修复的问题。")
+            
+            lines.append("")
+        
+        lines.append("## 结论和建议")
+        lines.append("")
+        
+        if total_errors > 0:
+            lines.append("### 关键问题")
+            lines.append("")
+            lines.append("以下是需要优先解决的关键问题:")
+            lines.append("")
+            
+            for analyzer_name, report in analysis_results.items():
+                for error in report.errors:
+                    lines.append(f"- [{analyzer_name}] **{error.code}**: {error.message}")
+                    if error.file_path:
+                        lines.append(f"  - 文件: `{error.file_path}`")
+                    if error.line_number:
+                        lines.append(f"  - 行号: {error.line_number}")
+                    lines.append("")
+        
+        performance_suggestions = []
+        for analyzer_name, report in analysis_results.items():
+            for suggestion in report.suggestions:
+                if "performance" in suggestion.tags or "memory" in suggestion.tags:
+                    performance_suggestions.append((analyzer_name, suggestion))
+        
+        if performance_suggestions:
+            lines.append("### 性能优化建议")
+            lines.append("")
+            for analyzer_name, suggestion in performance_suggestions:
+                lines.append(f"- [{analyzer_name}] **{suggestion.code}**: {suggestion.message}")
+                if suggestion.file_path:
+                    lines.append(f"  - 文件: `{suggestion.file_path}`")
+                if suggestion.line_number:
+                    lines.append(f"  - 行号: {suggestion.line_number}")
+                lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _generate_json_report(self, analysis_results: Dict[str, AnalysisReport], target_path: str) -> str:
+        """生成JSON格式的报告"""
+        report_data = {
+            "metadata": {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "target_path": target_path,
+                "analyzers": list(analysis_results.keys())
+            },
+            "summary": {
+                "total_warnings": sum(len(report.warnings) for report in analysis_results.values()),
+                "total_errors": sum(len(report.errors) for report in analysis_results.values()),
+                "total_suggestions": sum(len(report.suggestions) for report in analysis_results.values())
+            },
+            "results": {}
+        }
+        
+        for analyzer_name, report in analysis_results.items():
+            report_data["results"][analyzer_name] = {
+                "summary": report.summary,
+                "errors": [error.to_dict() for error in report.errors],
+                "warnings": [warning.to_dict() for warning in report.warnings],
+                "suggestions": [suggestion.to_dict() for suggestion in report.suggestions]
+            }
+        
+        return json.dumps(report_data, ensure_ascii=False, indent=2)
+    
+    def _generate_html_report(self, analysis_results: Dict[str, AnalysisReport], target_path: str) -> str:
+        """生成HTML格式的报告"""
+        markdown_content = self._generate_markdown_report(analysis_results, target_path)
+        
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>PyTorch LLM 分布式训练静态分析报告</title>
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 900px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                h1, h2, h3 {
+                    color: #0366d6;
+                }
+                code {
+                    background-color: #f6f8fa;
+                    padding: 0.2em 0.4em;
+                    border-radius: 3px;
+                    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+                }
+                pre {
+                    background-color: #f6f8fa;
+                    padding: 16px;
+                    border-radius: 3px;
+                    overflow: auto;
+                }
+                .error {
+                    color: #d73a49;
+                }
+                .warning {
+                    color: #e36209;
+                }
+                .suggestion {
+                    color: #0366d6;
+                }
+            </style>
+        </head>
+        <body>
+            <div id="content">
+                {content}
+            </div>
+        </body>
+        </html>
+        """
+        
+        html_content = markdown_content
+        html_content = html_content.replace("\n\n", "<br><br>")
+        html_content = html_content.replace("# ", "<h1>") + "</h1>"
+        html_content = html_content.replace("## ", "<h2>") + "</h2>"
+        html_content = html_content.replace("### ", "<h3>") + "</h3>"
+        html_content = html_content.replace("- ", "<li>") + "</li>"
+        html_content = html_content.replace("```bash", "<pre>")
+        html_content = html_content.replace("```", "</pre>")
+        html_content = html_content.replace("`", "<code>") + "</code>"
+        
+        return html_template.format(content=html_content)
