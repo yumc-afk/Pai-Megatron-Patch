@@ -16,21 +16,21 @@ class MyPyAnalyzer(BaseAnalyzer):
     type-related issues.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None, verbose: bool = False):
+    def __init__(self, config):
         """Initialize the MyPy analyzer.
         
         Args:
             config: Configuration for the analyzer.
-            verbose: Whether to enable verbose output.
         """
-        super().__init__(verbose=verbose)
+        super().__init__(config)
         
-        self.config = config or {}
-        self.strict = self.config.get("strict", False)
-        self.ignore_missing_imports = self.config.get("ignore_missing_imports", True)
-        self.python_version = self.config.get("python_version", "3.8")
-        self.disallow_untyped_defs = self.config.get("disallow_untyped_defs", False)
-        self.disallow_incomplete_defs = self.config.get("disallow_incomplete_defs", False)
+        self.name = "MyPyAnalyzer"
+        mypy_config = self.config.get_analyzer_config("mypy")
+        self.strict = mypy_config.get("strict", False)
+        self.ignore_missing_imports = mypy_config.get("ignore_missing_imports", True)
+        self.python_version = mypy_config.get("python_version", "3.8")
+        self.disallow_untyped_defs = mypy_config.get("disallow_untyped_defs", False)
+        self.disallow_incomplete_defs = mypy_config.get("disallow_incomplete_defs", False)
     
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze a single file using MyPy.
@@ -236,6 +236,80 @@ class MyPyAnalyzer(BaseAnalyzer):
             return "call_error"
         else:
             return "other"
+            
+    def analyze(self):
+        """Analyze the target specified in the configuration.
+        
+        Returns:
+            An AnalysisReport object containing the analysis results.
+        """
+        from ml_static_analysis.core.report import AnalysisReport
+        
+        target_path = self.config.target_path
+        
+        if not target_path:
+            report = AnalysisReport(self.name)
+            report.add_error(
+                file_path="",
+                line=0,
+                message="No target path specified",
+                code="mypy-001"
+            )
+            return report
+        
+        if os.path.isfile(target_path):
+            result = self.analyze_file(target_path)
+        elif os.path.isdir(target_path):
+            result = self.analyze_files([target_path])
+        else:
+            report = AnalysisReport(self.name)
+            report.add_error(
+                file_path=target_path,
+                line=0,
+                message=f"Target path does not exist: {target_path}",
+                code="mypy-002"
+            )
+            return report
+        
+        report = AnalysisReport(self.name)
+        
+        if not result.get("success", False):
+            error_message = result.get("error", "Unknown error")
+            report.set_failure(error_message)
+            return report
+        
+        findings = result.get("findings", {})
+        
+        for file_path, file_findings in findings.items():
+            for finding in file_findings:
+                severity = finding.get("severity", "info")
+                message = finding.get("message", "")
+                line = finding.get("line", 0)
+                code = finding.get("code", "mypy-finding")
+                
+                if severity == "error":
+                    report.add_error(
+                        file_path=file_path,
+                        line=line,
+                        message=message,
+                        code=code
+                    )
+                elif severity == "warning":
+                    report.add_warning(
+                        file_path=file_path,
+                        line=line,
+                        message=message,
+                        code=code
+                    )
+                else:
+                    report.add_suggestion(
+                        file_path=file_path,
+                        line=line,
+                        message=message,
+                        code=code
+                    )
+        
+        return report
 
 
 def run_mypy_analysis(
