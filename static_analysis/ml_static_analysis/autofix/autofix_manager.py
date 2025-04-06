@@ -6,62 +6,109 @@ import difflib
 from typing import Dict, List, Optional, Any, Union, Tuple
 
 
-class AutoFixManager:
+class AutofixManager:
     """Manager for auto-fixing issues found by static analyzers.
     
     This class provides functionality to automatically fix common issues
     found by static analyzers in ML codebases.
     """
     
-    def __init__(self, verbose: bool = False):
+    def __init__(self, config):
         """Initialize the auto-fix manager.
         
         Args:
-            verbose: Whether to enable verbose output.
+            config: Analysis configuration.
         """
-        self.verbose = verbose
+        self.config = config
+        self.verbose = config.verbose
         self.fixes_applied = []
+        self.fixes_failed = 0
     
     def apply_fixes(
         self,
-        findings: Dict[str, Any],
-        dry_run: bool = True,
-    ) -> Dict[str, Any]:
+        analysis_results: Dict[str, Any],
+    ) -> Tuple[int, int, List[Dict[str, Any]]]:
         """Apply auto-fixes to issues found by static analyzers.
         
         Args:
-            findings: Dictionary with findings from static analyzers.
-            dry_run: Whether to only simulate applying fixes without actually modifying files.
+            analysis_results: Dictionary with analysis results from analyzers.
             
         Returns:
-            A dictionary with information about applied fixes.
+            A tuple of (fixes_applied, fixes_failed, fixes_details) where:
+            - fixes_applied: Number of fixes successfully applied
+            - fixes_failed: Number of fixes that failed to apply
+            - fixes_details: List of dictionaries with details about each fix
         """
         self.fixes_applied = []
+        fixes_failed = 0
         
-        for analyzer_name, analyzer_results in findings.get("analyzers", {}).items():
-            if not analyzer_results or analyzer_results.get("success") is False:
+        dry_run = self.config.autofix_dry_run
+        
+        for analyzer_name, report in analysis_results.items():
+            if not report or not hasattr(report, 'get_errors') or not hasattr(report, 'get_warnings'):
                 continue
             
-            analyzer_findings = analyzer_results.get("findings", {})
+            for error in report.get_errors():
+                file_path = error.get("file_path", "")
+                line = error.get("line", 0)
+                message = error.get("message", "")
+                code = error.get("code", "")
+                
+                if not file_path or line <= 0:
+                    continue
+                
+                try:
+                    if analyzer_name == "MyPyAnalyzer":
+                        fixed = self._apply_mypy_fixes({file_path: [error]}, dry_run)
+                    elif analyzer_name == "PyTeaAnalyzer":
+                        fixed = self._apply_pytea_fixes({file_path: [error]}, dry_run)
+                    elif analyzer_name == "PyAssistantAnalyzer":
+                        fixed = self._apply_pyassistant_fixes({file_path: {"error": [error]}}, dry_run)
+                    elif analyzer_name == "TorchTypingAnalyzer":
+                        fixed = self._apply_torchtyping_fixes({file_path: [error]}, dry_run)
+                    elif analyzer_name == "PatternAnalyzer":
+                        fixed = self._apply_pattern_fixes({file_path: {"error": [error]}}, dry_run)
+                    else:
+                        fixed = False
+                    
+                    if not fixed:
+                        fixes_failed += 1
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Error applying fix for {analyzer_name} error in {file_path}:{line}: {e}")
+                    fixes_failed += 1
             
-            if not analyzer_findings:
-                continue
-            
-            if analyzer_name == "MyPy":
-                self._apply_mypy_fixes(analyzer_findings, dry_run)
-            elif analyzer_name == "PyTea":
-                self._apply_pytea_fixes(analyzer_findings, dry_run)
-            elif analyzer_name == "PyAssistant":
-                self._apply_pyassistant_fixes(analyzer_findings, dry_run)
-            elif analyzer_name == "TorchTyping":
-                self._apply_torchtyping_fixes(analyzer_findings, dry_run)
-            elif analyzer_name == "Pattern Analysis":
-                self._apply_pattern_fixes(analyzer_findings, dry_run)
+            for warning in report.get_warnings():
+                file_path = warning.get("file_path", "")
+                line = warning.get("line", 0)
+                message = warning.get("message", "")
+                code = warning.get("code", "")
+                
+                if not file_path or line <= 0:
+                    continue
+                
+                try:
+                    if analyzer_name == "MyPyAnalyzer":
+                        fixed = self._apply_mypy_fixes({file_path: [warning]}, dry_run)
+                    elif analyzer_name == "PyTeaAnalyzer":
+                        fixed = self._apply_pytea_fixes({file_path: [warning]}, dry_run)
+                    elif analyzer_name == "PyAssistantAnalyzer":
+                        fixed = self._apply_pyassistant_fixes({file_path: {"warning": [warning]}}, dry_run)
+                    elif analyzer_name == "TorchTypingAnalyzer":
+                        fixed = self._apply_torchtyping_fixes({file_path: [warning]}, dry_run)
+                    elif analyzer_name == "PatternAnalyzer":
+                        fixed = self._apply_pattern_fixes({file_path: {"warning": [warning]}}, dry_run)
+                    else:
+                        fixed = False
+                    
+                    if not fixed:
+                        fixes_failed += 1
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Error applying fix for {analyzer_name} warning in {file_path}:{line}: {e}")
+                    fixes_failed += 1
         
-        return {
-            "fixes_applied": len(self.fixes_applied),
-            "fixes": self.fixes_applied,
-        }
+        return len(self.fixes_applied), fixes_failed, self.fixes_applied
     
     def _apply_mypy_fixes(
         self,
@@ -554,6 +601,14 @@ class AutoFixManager:
         
         return False, line
     
+    def generate_autofix_report(self) -> str:
+        """Generate a report of applied fixes.
+        
+        Returns:
+            A string containing the report in Markdown format.
+        """
+        return self.generate_fix_report()
+        
     def generate_fix_report(self) -> str:
         """Generate a report of applied fixes.
         
