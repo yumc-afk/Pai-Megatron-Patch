@@ -7,7 +7,6 @@ import tempfile
 from typing import Dict, List, Optional, Any, Union
 
 from ml_static_analysis.core.analyzer import BaseAnalyzer
-from ml_static_analysis.core.report import AnalysisReport, Finding, Severity
 
 
 class JaxTypeAnalyzer(BaseAnalyzer):
@@ -17,150 +16,107 @@ class JaxTypeAnalyzer(BaseAnalyzer):
     and reports potential tensor shape and type issues.
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, verbose: bool = False):
         """Initialize the JaxType analyzer.
         
         Args:
             config: Configuration for the analyzer.
+            verbose: Whether to enable verbose output.
         """
-        super().__init__(config)
+        super().__init__(verbose=verbose)
         
-        self.name = "JaxTypeAnalyzer"
-        self.severity_threshold = self.config.get_analyzer_config("jaxtype").get("severity_threshold", "info")
-        self.check_shapes = self.config.get_analyzer_config("jaxtype").get("check_shapes", True)
-        self.check_dtypes = self.config.get_analyzer_config("jaxtype").get("check_dtypes", True)
-        self.check_devices = self.config.get_analyzer_config("jaxtype").get("check_devices", True)
+        self.config = config or {}
+        self.severity_threshold = self.config.get("severity_threshold", "info")
+        self.check_shapes = self.config.get("check_shapes", True)
+        self.check_dtypes = self.config.get("check_dtypes", True)
+        self.check_devices = self.config.get("check_devices", True)
     
-    def analyze(self) -> AnalysisReport:
-        """Analyze the target specified in the configuration.
-        
-        Returns:
-            An AnalysisReport object containing the analysis results.
-        """
-        target_path = self.config.target_path
-        
-        if not target_path:
-            report = AnalysisReport(self.name)
-            report.add_error(
-                file_path="",
-                line=0,
-                message="No target path specified",
-                code="jaxtype-001"
-            )
-            return report
-        
-        if os.path.isfile(target_path):
-            return self._analyze_file(target_path)
-        elif os.path.isdir(target_path):
-            return self._analyze_directory(target_path)
-        else:
-            report = AnalysisReport(self.name)
-            report.add_error(
-                file_path=target_path,
-                line=0,
-                message=f"Target path does not exist: {target_path}",
-                code="jaxtype-002"
-            )
-            return report
-    
-    def _analyze_file(self, file_path: str) -> AnalysisReport:
-        """Analyze a single file.
+    def analyze_file(self, file_path: str) -> Dict[str, Any]:
+        """Analyze a single file using JaxType.
         
         Args:
             file_path: Path to the file to analyze.
             
         Returns:
-            An AnalysisReport object containing the analysis results.
+            A dictionary with analysis results.
         """
-        if not file_path.endswith(".py"):
-            report = AnalysisReport(self.name)
-            report.add_warning(
-                file_path=file_path,
-                line=0,
-                message=f"Skipping non-Python file: {file_path}",
-                code="jaxtype-003"
-            )
-            return report
-        
-        findings = self._analyze_file_with_jaxtype(file_path)
-        
-        report = AnalysisReport(self.name)
-        
-        for finding in findings:
-            severity = finding.get("severity", "info")
-            message = finding.get("message", "")
-            line = finding.get("line", 0)
-            code = finding.get("code", "jaxtype-finding")
-            
-            if severity == "error":
-                report.add_error(
-                    file_path=file_path,
-                    line=line,
-                    message=message,
-                    code=code
-                )
-            elif severity == "warning":
-                report.add_warning(
-                    file_path=file_path,
-                    line=line,
-                    message=message,
-                    code=code
-                )
-            else:
-                report.add_suggestion(
-                    file_path=file_path,
-                    line=line,
-                    message=message,
-                    code=code
-                )
-        
-        return report
+        return self.analyze_files([file_path])
     
-    def _analyze_directory(self, directory_path: str) -> AnalysisReport:
-        """Analyze all Python files in a directory.
+    def analyze_files(self, file_paths: List[str]) -> Dict[str, Any]:
+        """Analyze multiple files using JaxType.
         
         Args:
-            directory_path: Path to the directory to analyze.
+            file_paths: List of paths to files to analyze.
             
         Returns:
-            An AnalysisReport object containing the analysis results.
+            A dictionary with analysis results.
         """
-        report = AnalysisReport(self.name)
-        analyzed_files = 0
+        if not file_paths:
+            return {
+                "success": True,
+                "summary": {
+                    "analyzed_files": 0,
+                    "total_findings": 0,
+                    "findings_by_category": {},
+                    "findings_by_severity": {},
+                },
+                "findings": {},
+            }
         
-        for root, _, files in os.walk(directory_path):
-            for file in files:
-                if file.endswith(".py"):
-                    file_path = os.path.join(root, file)
-                    file_report = self._analyze_file(file_path)
-                    
-                    report.merge(file_report)
-                    analyzed_files += 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            config_path = f.name
+            f.write("{\n")
+            f.write(f'  "severity_threshold": "{self.severity_threshold}",\n')
+            f.write(f'  "check_shapes": {str(self.check_shapes).lower()},\n')
+            f.write(f'  "check_dtypes": {str(self.check_dtypes).lower()},\n')
+            f.write(f'  "check_devices": {str(self.check_devices).lower()}\n')
+            f.write("}\n")
         
-        report.set_analyzed_files(analyzed_files)
-        return report
+        try:
+            try:
+                import jaxtyping
+            except ImportError:
+                return {
+                    "success": False,
+                    "error": "JaxType is not installed. Please install it with 'pip install jaxtyping'.",
+                }
+            
+            findings = {}
+            
+            for file_path in file_paths:
+                if not os.path.exists(file_path) or not file_path.endswith(".py"):
+                    continue
+                
+                file_findings = self._analyze_file_with_jaxtype(file_path, config_path)
+                
+                if file_findings:
+                    findings[file_path] = file_findings
+            
+            summary = self._generate_summary(findings)
+            
+            return {
+                "success": True,
+                "summary": summary,
+                "findings": findings,
+            }
+        finally:
+            os.unlink(config_path)
     
-    def _analyze_file_with_jaxtype(self, file_path: str) -> List[Dict[str, Any]]:
+    def _analyze_file_with_jaxtype(self, file_path: str, config_path: str) -> List[Dict[str, Any]]:
         """Analyze a file using JaxType.
         
         Args:
             file_path: Path to the file to analyze.
+            config_path: Path to the JaxType configuration file.
             
         Returns:
             A list of findings.
         """
         try:
-            try:
-                import jaxtyping
-            except ImportError:
-                return [{
-                    "line": 1,
-                    "severity": "error",
-                    "message": "JaxType is not installed. Please install it with 'pip install jaxtyping'."
-                }]
+            import jaxtyping
             
             if self.verbose:
-                print(f"Running JaxType analysis on {file_path}")
+                print(f"Running JaxType on {file_path}")
             
             findings = self._simulate_jaxtype_analysis(file_path)
             
@@ -169,11 +125,7 @@ class JaxTypeAnalyzer(BaseAnalyzer):
             if self.verbose:
                 print(f"Error running JaxType on {file_path}: {str(e)}")
             
-            return [{
-                "line": 1,
-                "severity": "error",
-                "message": f"Error analyzing file with JaxType: {str(e)}"
-            }]
+            return []
     
     def _simulate_jaxtype_analysis(self, file_path: str) -> List[Dict[str, Any]]:
         """Simulate JaxType analysis on a file.
@@ -194,13 +146,13 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                 lines = f.readlines()
             
             has_jaxtype_import = False
-            has_tensortype_import = False
+            has_array_import = False
             
             for i, line in enumerate(lines):
                 if "import jaxtyping" in line or "from jaxtyping import" in line:
                     has_jaxtype_import = True
-                    if "Array" in line or "Float" in line or "Int" in line:
-                        has_tensortype_import = True
+                    if "Array" in line:
+                        has_array_import = True
             
             for i, line in enumerate(lines):
                 line_num = i + 1
@@ -210,14 +162,18 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                         findings.append({
                             "line": line_num,
                             "severity": "warning",
-                            "message": "Missing tensor type annotation, use jaxtyping.Array instead of torch.Tensor"
+                            "message": "Missing tensor type annotation, use Array instead of torch.Tensor",
+                            "content": line.strip(),
+                            "category": "missing_tensor_type",
                         })
                 
                 if "->" in line and "torch.Tensor" in line and "def " in line:
                     findings.append({
                         "line": line_num,
                         "severity": "info",
-                        "message": "Consider using jaxtyping.Array for return type annotation"
+                        "message": "Consider using Array for return type annotation",
+                        "content": line.strip(),
+                        "category": "return_type_annotation",
                     })
                 
                 if "torch." in line and any(op in line for op in ["reshape", "view", "permute", "transpose"]):
@@ -231,7 +187,9 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                         findings.append({
                             "line": line_num,
                             "severity": "info",
-                            "message": "Tensor operation without shape check, consider adding JaxType annotations"
+                            "message": "Tensor operation without shape check, consider adding Array annotations",
+                            "content": line.strip(),
+                            "category": "shape_check",
                         })
                 
                 if "torch." in line and any(dtype in line for dtype in ["float", "int", "long", "bool", "double"]):
@@ -245,23 +203,29 @@ class JaxTypeAnalyzer(BaseAnalyzer):
                         findings.append({
                             "line": line_num,
                             "severity": "info",
-                            "message": "Tensor dtype operation without dtype check, consider adding JaxType annotations"
+                            "message": "Tensor dtype operation without dtype check, consider adding Array annotations",
+                            "content": line.strip(),
+                            "category": "dtype_check",
                         })
             
             if not has_jaxtype_import and len(findings) > 0:
                 findings.append({
                     "line": 1,
                     "severity": "info",
-                    "message": "Consider importing jaxtyping for better tensor type annotations"
+                    "message": "Consider importing JaxType for better tensor type annotations",
+                    "content": lines[0].strip() if lines else "",
+                    "category": "missing_import",
                 })
             
-            if has_jaxtype_import and not has_tensortype_import and len(findings) > 0:
+            if has_jaxtype_import and not has_array_import and len(findings) > 0:
                 for i, line in enumerate(lines):
                     if "import jaxtyping" in line or "from jaxtyping import" in line:
                         findings.append({
                             "line": i + 1,
                             "severity": "info",
-                            "message": "Consider importing Array, Float, Int from jaxtyping"
+                            "message": "Consider importing Array from jaxtyping",
+                            "content": line.strip(),
+                            "category": "missing_import",
                         })
                         break
             
@@ -270,11 +234,44 @@ class JaxTypeAnalyzer(BaseAnalyzer):
             if self.verbose:
                 print(f"Error simulating JaxType analysis on {file_path}: {str(e)}")
             
-            return [{
-                "line": 1,
-                "severity": "error",
-                "message": f"Error during JaxType analysis: {str(e)}"
-            }]
+            return []
+    
+    def _generate_summary(self, findings: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+        """Generate a summary of the findings.
+        
+        Args:
+            findings: Dictionary mapping file paths to lists of findings.
+            
+        Returns:
+            A dictionary with summary information.
+        """
+        total_findings = 0
+        findings_by_category = {}
+        findings_by_severity = {
+            "error": 0,
+            "warning": 0,
+            "info": 0,
+        }
+        
+        for file_path, file_findings in findings.items():
+            total_findings += len(file_findings)
+            
+            for finding in file_findings:
+                severity = finding.get("severity", "info")
+                category = finding.get("category", "other")
+                
+                if category not in findings_by_category:
+                    findings_by_category[category] = 0
+                
+                findings_by_category[category] += 1
+                findings_by_severity[severity] += 1
+        
+        return {
+            "analyzed_files": len(findings),
+            "total_findings": total_findings,
+            "findings_by_category": findings_by_category,
+            "findings_by_severity": findings_by_severity,
+        }
 
 
 def run_jaxtype_analysis(
@@ -292,17 +289,5 @@ def run_jaxtype_analysis(
     Returns:
         A dictionary with analysis results.
     """
-    from ml_static_analysis.core.config import AnalysisConfig
-    
-    config_obj = AnalysisConfig(verbose=verbose)
-    if config:
-        config_obj.set_analyzer_config("jaxtype", config)
-    
-    analyzer = JaxTypeAnalyzer(config_obj)
-    
-    results = {}
-    for file in files:
-        report = analyzer._analyze_file(file)
-        results[file] = report.to_dict()
-    
-    return results
+    analyzer = JaxTypeAnalyzer(config=config, verbose=verbose)
+    return analyzer.analyze_files(files)

@@ -2,6 +2,10 @@
 import os
 import sys
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import argparse
 from transformers import AutoConfig, AutoModelForCausalLM
 
@@ -54,6 +58,7 @@ def verify_model_structure():
             return
         
         print("\n加载模型权重（这可能需要一些时间）...")
+        # 确保张量数据类型正确
         model = AutoModelForCausalLM.from_pretrained(
             args.model_name,
             config=config,
