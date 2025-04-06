@@ -1,0 +1,3 @@
+[console_scripts]
+ml-analyze = ml_static_analysis.cli.main:main
+ml-analyze-lite = ml_static_analysis_lite:analyze_codebase

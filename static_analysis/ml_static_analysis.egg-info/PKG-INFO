@@ -1,3 +1,56 @@
+Metadata-Version: 2.4
+Name: ml-static-analysis
+Version: 0.1.0
+Summary: PyTorch LLM分布式训练静态分析框架，支持LLM编排
+Home-page: https://github.com/yumc-afk/Pai-Megatron-Patch
+Author: Alibaba PAI Team
+Author-email: pai-team@alibaba-inc.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: torch>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: mypy>=1.0.0
+Requires-Dist: typing-extensions>=4.5.0
+Requires-Dist: jinja2>=3.0.0
+Provides-Extra: lite
+Requires-Dist: mypy>=1.0.0; extra == "lite"
+Requires-Dist: typing-extensions>=4.5.0; extra == "lite"
+Requires-Dist: jaxtyping>=0.2.20; extra == "lite"
+Requires-Dist: beartype>=0.14.1; extra == "lite"
+Requires-Dist: jinja2>=3.0.0; extra == "lite"
+Provides-Extra: standard
+Requires-Dist: mypy>=1.0.0; extra == "standard"
+Requires-Dist: typing-extensions>=4.5.0; extra == "standard"
+Requires-Dist: jaxtyping>=0.2.20; extra == "standard"
+Requires-Dist: beartype>=0.14.1; extra == "standard"
+Requires-Dist: pylint>=2.17.0; extra == "standard"
+Requires-Dist: flake8>=6.0.0; extra == "standard"
+Requires-Dist: pytest>=7.0.0; extra == "standard"
+Requires-Dist: jinja2>=3.0.0; extra == "standard"
+Provides-Extra: all
+Requires-Dist: mypy>=1.0.0; extra == "all"
+Requires-Dist: typing-extensions>=4.5.0; extra == "all"
+Requires-Dist: jaxtyping>=0.2.20; extra == "all"
+Requires-Dist: beartype>=0.14.1; extra == "all"
+Requires-Dist: pylint>=2.17.0; extra == "all"
+Requires-Dist: flake8>=6.0.0; extra == "all"
+Requires-Dist: pytest>=7.0.0; extra == "all"
+Requires-Dist: crosshair-tool>=0.0.31; extra == "all"
+Requires-Dist: jinja2>=3.0.0; extra == "all"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
 # PyTorch LLM 分布式训练静态分析框架
 
 本框架集成了多种静态分析工具，用于在不运行完整训练的情况下验证PyTorch LLM分布式训练代码的正确性，特别关注MLA（Multi-Latent Attention）和MOE（Mixture of Experts）组件。
