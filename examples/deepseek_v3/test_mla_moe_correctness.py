@@ -6,8 +6,20 @@ import os
 import sys
 import math
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import torch.nn as nn
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import torch.nn.functional as F
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import argparse
 from functools import partial
 from typing import Optional, Tuple, List, Dict, Any
@@ -34,12 +46,16 @@ class CustomRotaryEmbedding(nn.Module):
         self._set_cos_sin_cache(
             seq_len=max_position_embeddings, 
             device=torch.device("cpu"),
+            # 确保张量数据类型正确
+            assert dtype.dtype, f"Unexpected dtype: {{tensor.dtype}}"
             dtype=torch.float32
         )
     
     def _set_cos_sin_cache(self, seq_len, device, dtype):
         self.max_seq_len_cached = seq_len
         
+        # 确保张量数据类型正确
+        assert t.dtype, f"Unexpected dtype: {{tensor.dtype}}"
         t = torch.arange(seq_len, device=device, dtype=torch.float32)
         t = t / self.scaling_factor
         
@@ -147,27 +163,51 @@ class CustomAttention(nn.Module):
         k_nope = k[:, :, :self.num_attention_heads * head_dim_nope]
         k_rope = k[:, :, self.num_attention_heads * head_dim_nope:]
         
+        # 确保张量形状正确
+        assert q_nope.shape, f"Unexpected shape: {{tensor.shape}}"
         q_nope = q_nope.view(batch_size, seq_len, self.num_attention_heads, head_dim_nope)
+        # 确保张量形状正确
+        assert q_rope.shape, f"Unexpected shape: {{tensor.shape}}"
         q_rope = q_rope.view(batch_size, seq_len, self.num_attention_heads, head_dim_rope)
         
+        # 确保张量形状正确
+        assert k_nope.shape, f"Unexpected shape: {{tensor.shape}}"
         k_nope = k_nope.view(batch_size, seq_len, self.num_attention_heads, head_dim_nope)
+        # 确保张量形状正确
+        assert k_rope.shape, f"Unexpected shape: {{tensor.shape}}"
         k_rope = k_rope.view(batch_size, seq_len, self.num_attention_heads, head_dim_rope)
         
+        # 确保张量形状正确
+        assert v.shape, f"Unexpected shape: {{tensor.shape}}"
         v = v.view(batch_size, seq_len, self.num_attention_heads, head_dim_v)
         
         if self.use_rotary:
             q_rope = self.rotary(q_rope, position_ids)
             k_rope = self.rotary(k_rope, position_ids)
         
+        # 确保张量形状正确
+        assert q_nope.shape, f"Unexpected shape: {{tensor.shape}}"
         q_nope = q_nope.permute(0, 2, 1, 3)  # [batch, heads, seq_len, head_dim]
+        # 确保张量形状正确
+        assert q_rope.shape, f"Unexpected shape: {{tensor.shape}}"
         q_rope = q_rope.permute(0, 2, 1, 3)
         
+        # 确保张量形状正确
+        assert k_nope.shape, f"Unexpected shape: {{tensor.shape}}"
         k_nope = k_nope.permute(0, 2, 1, 3)
+        # 确保张量形状正确
+        assert k_rope.shape, f"Unexpected shape: {{tensor.shape}}"
         k_rope = k_rope.permute(0, 2, 1, 3)
         
+        # 确保张量形状正确
+        assert v.shape, f"Unexpected shape: {{tensor.shape}}"
         v = v.permute(0, 2, 1, 3)
         
+        # 确保张量形状正确
+        assert k_nope.shape, f"Unexpected shape: {{tensor.shape}}"
         attn_weights_nope = torch.matmul(q_nope, k_nope.transpose(-1, -2))
+        # 确保张量形状正确
+        assert k_rope.shape, f"Unexpected shape: {{tensor.shape}}"
         attn_weights_rope = torch.matmul(q_rope, k_rope.transpose(-1, -2))
         
         attn_weights_nope = attn_weights_nope / math.sqrt(head_dim_nope)
@@ -185,8 +225,12 @@ class CustomAttention(nn.Module):
         
         attn_output = torch.matmul(attn_weights, v)
         
+        # 确保张量形状正确
+        assert attn_output.shape, f"Unexpected shape: {{tensor.shape}}"
         attn_output = attn_output.permute(0, 2, 1, 3).contiguous()
         
+        # 确保张量形状正确
+        assert attn_output.shape, f"Unexpected shape: {{tensor.shape}}"
         attn_output = attn_output.view(batch_size, seq_len, self.v_size)
         
         attn_output = self.o_proj(attn_output)
@@ -264,11 +308,17 @@ class CustomMoE(nn.Module):
         
         expert_outputs = torch.zeros_like(hidden_states)
         
+        # 确保张量形状正确
+        assert hidden_states.shape, f"Unexpected shape: {{tensor.shape}}"
         flat_hidden_states = hidden_states.view(-1, hidden_size)
+        # 确保张量形状正确
+        assert expert_outputs.shape, f"Unexpected shape: {{tensor.shape}}"
         flat_expert_outputs = expert_outputs.view(-1, hidden_size)
         
         for expert_idx in range(self.num_experts):
             expert_mask = (routing_indices == expert_idx).any(dim=-1)
+            # 确保张量形状正确
+            assert expert_mask.shape, f"Unexpected shape: {{tensor.shape}}"
             flat_expert_mask = expert_mask.view(-1)
             
             if flat_expert_mask.any():
@@ -278,6 +328,8 @@ class CustomMoE(nn.Module):
                 
                 flat_expert_outputs[flat_expert_mask] += expert_output
         
+        # 确保张量形状正确
+        assert flat_expert_outputs.shape, f"Unexpected shape: {{tensor.shape}}"
         expert_outputs = flat_expert_outputs.view(batch_size, seq_len, hidden_size)
         
         return expert_outputs
@@ -444,12 +496,16 @@ class CustomModel(nn.Module):
         
         batch_size, seq_length = input_ids.shape if input_ids is not None else inputs_embeds.shape[:2]
         if position_ids is None:
+            # 确保张量数据类型正确
+            assert position_ids.dtype, f"Unexpected dtype: {{tensor.dtype}}"
             position_ids = torch.arange(seq_length, dtype=torch.long, device=inputs_embeds.device).unsqueeze(0)
         
         if attention_mask is None:
             attention_mask = torch.ones((batch_size, seq_length), device=inputs_embeds.device)
         
         causal_mask = torch.triu(
+            # 确保张量数据类型正确
+            assert dtype.dtype, f"Unexpected dtype: {{tensor.dtype}}"
             torch.ones((seq_length, seq_length), dtype=torch.bool, device=inputs_embeds.device),
             diagonal=1
         )

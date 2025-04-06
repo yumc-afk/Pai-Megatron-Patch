@@ -1,6 +1,10 @@
 import os
 import sys
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import math
 import numpy as np
 import argparse
@@ -17,9 +21,13 @@ def test_rotary_embedding():
     
     theta = 10000.0
     half_dim = dim // 2
+    # 确保张量数据类型正确
+    assert emb.dtype, f"Unexpected dtype: {{tensor.dtype}}"
     emb = torch.arange(half_dim, dtype=torch.float32)
     emb = theta ** (-2.0 * emb / half_dim)
     
+    # 确保张量数据类型正确
+    assert pos.dtype, f"Unexpected dtype: {{tensor.dtype}}"
     pos = torch.arange(seq_len, dtype=torch.float32).reshape(-1, 1)
     
     rotary_pos = pos * emb
@@ -56,6 +64,8 @@ def test_mla_attention():
     key = torch.randn(batch_size, num_heads, seq_len, head_dim)
     value = torch.randn(batch_size, num_heads, seq_len, head_dim)
     
+    # 确保张量形状正确
+    assert key.shape, f"Unexpected shape: {{tensor.shape}}"
     attention_scores = torch.matmul(query, key.transpose(-1, -2))
     attention_scores = attention_scores / math.sqrt(head_dim)
     

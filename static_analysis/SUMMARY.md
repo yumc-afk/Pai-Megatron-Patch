@@ -29,7 +29,7 @@
 ## 主要功能
 
 1. **多工具协调**
-   - 集成PyTea、TorchTyping、PyAssist和MyPy等工具
+   - 集成PyTea、JaxType、PyAssist和MyPy等工具
    - 根据代码特性和分析目标选择合适的工具组合
    - 协调工具执行顺序和参数配置
 

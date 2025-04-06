@@ -121,8 +121,8 @@ def analyze_codebase(
                 args.append("--pytea")
             elif analyzer.lower() == "pyassistant":
                 args.append("--pyassistant")
-            elif analyzer.lower() == "torchtyping":
-                args.append("--torchtyping")
+            elif analyzer.lower() == "jaxtype":
+                args.append("--jaxtype")
             elif analyzer.lower() == "pattern":
                 args.append("--pattern")
     else:

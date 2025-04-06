@@ -66,7 +66,7 @@ LLM作为静态分析工具的调度者，遵循以下端到端工作流：
 ```
 分析目标
 ├── 是否关注正确性问题？
-│   ├── 是 → 优先使用PyTea和TorchTyping
+│   ├── 是 → 优先使用PyTea和JaxType
 │   └── 否 → 继续评估
 ├── 是否关注性能问题？
 │   ├── 是 → 优先使用PyAssist和性能分析工具
@@ -101,7 +101,7 @@ LLM作为静态分析工具的调度者，遵循以下端到端工作流：
 
 2. **分层执行**
    - 首先执行基础工具(如MyPy)
-   - 然后执行专业工具(如PyTea、TorchTyping)
+   - 然后执行专业工具(如PyTea、JaxType)
    - 最后执行集成分析工具
 
 3. **结果收集**
@@ -126,8 +126,8 @@ for tool in selected_tools:
         run_mypy_analysis(codebase, config["mypy"])
     elif tool == "pytea":
         run_pytea_analysis(codebase, config["pytea"])
-    elif tool == "torchtyping":
-        run_torchtyping_analysis(codebase, config["torchtyping"])
+    elif tool == "jaxtype":
+        run_jaxtype_analysis(codebase, config["jaxtype"])
     elif tool == "pyassist":
         run_pyassist_analysis(codebase, config["pyassist"])
     

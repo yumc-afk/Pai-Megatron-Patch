@@ -15,7 +15,15 @@
 from typing import Union
 from contextlib import nullcontext
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import torch._dynamo
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import inspect
 
 from megatron.core.enums import ModelType

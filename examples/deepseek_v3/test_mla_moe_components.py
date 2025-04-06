@@ -2,6 +2,10 @@
 import os
 import sys
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import math
 import numpy as np
 import argparse
@@ -31,6 +35,8 @@ class CustomRotaryEmbedding(torch.nn.Module):
         """更新余弦和正弦缓存"""
         self.max_seq_len_cached = seq_len
         
+        # 确保张量数据类型正确
+        assert t.dtype, f"Unexpected dtype: {{tensor.dtype}}"
         t = torch.arange(seq_len, dtype=torch.float32)
         t = t / self.scaling_factor
         
@@ -40,7 +46,7 @@ class CustomRotaryEmbedding(torch.nn.Module):
         self.cos_cached = emb.cos()[None, None, :, :]
         self.sin_cached = emb.sin()[None, None, :, :]
     
-    def forward(self, x: torch.Tensor, position_ids: Optional[torch.Tensor] = None):
+    def forward(self, x: Array, position_ids: Optional[torch.Tensor] = None):
         """前向传播"""
         batch_size, seq_len, _ = x.shape
         
@@ -58,7 +64,7 @@ class CustomRotaryEmbedding(torch.nn.Module):
         
         return cos, sin
 
-def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor):
+def apply_rotary_pos_emb(q: Array, k: Array, cos: Array, sin: Array):
     """应用旋转位置编码"""
     q_embed_dim = q.shape[-1]
     k_embed_dim = k.shape[-1]
@@ -76,7 +82,11 @@ def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, si
         cos = cos.expand(q.size(0), q.size(2), -1, -1)  # [batch, heads, seq_len, dim]
         sin = sin.expand(q.size(0), q.size(2), -1, -1)  # [batch, heads, seq_len, dim]
         
+        # 确保张量形状正确
+        assert cos.shape, f"Unexpected shape: {{tensor.shape}}"
         cos = cos.transpose(1, 2)  # [batch, seq_len, heads, dim]
+        # 确保张量形状正确
+        assert sin.shape, f"Unexpected shape: {{tensor.shape}}"
         sin = sin.transpose(1, 2)  # [batch, seq_len, heads, dim]
     
     q_rotated = torch.cat([
@@ -132,7 +142,7 @@ class CustomMultiLatentAttention(torch.nn.Module):
     
     def forward(
         self,
-        hidden_states: torch.Tensor,
+        hidden_states: Array,
         attention_mask: Optional[torch.Tensor] = None,
     ):
         """前向传播"""
@@ -151,6 +161,8 @@ class CustomMultiLatentAttention(torch.nn.Module):
         )
         
         kv = self.kv_up_proj(self.kv_layernorm(kv_compressed))
+        # 确保张量形状正确
+        assert kv.shape, f"Unexpected shape: {{tensor.shape}}"
         kv = kv.view(
             batch_size,
             seq_len,
@@ -169,10 +181,18 @@ class CustomMultiLatentAttention(torch.nn.Module):
         query = torch.cat([q_no_pe, q_pos_emb_rotated], dim=-1)
         key = torch.cat([k_no_pe, k_pos_emb_rotated], dim=-1)
         
+        # 确保张量形状正确
+        assert query.shape, f"Unexpected shape: {{tensor.shape}}"
         query = query.permute(0, 2, 1, 3)  # [batch_size, num_heads, seq_len, head_dim]
+        # 确保张量形状正确
+        assert key.shape, f"Unexpected shape: {{tensor.shape}}"
         key = key.permute(0, 2, 1, 3)      # [batch_size, num_heads, seq_len, head_dim]
+        # 确保张量形状正确
+        assert value.shape, f"Unexpected shape: {{tensor.shape}}"
         value = value.permute(0, 2, 1, 3)  # [batch_size, num_heads, seq_len, head_dim]
         
+        # 确保张量形状正确
+        assert key.shape, f"Unexpected shape: {{tensor.shape}}"
         attention_scores = torch.matmul(query, key.transpose(-1, -2))
         attention_scores = attention_scores * self.softmax_scale
         
@@ -183,7 +203,11 @@ class CustomMultiLatentAttention(torch.nn.Module):
         
         context = torch.matmul(attention_probs, value)
         
+        # 确保张量形状正确
+        assert context.shape, f"Unexpected shape: {{tensor.shape}}"
         context = context.permute(0, 2, 1, 3).contiguous()
+        # 确保张量形状正确
+        assert context.shape, f"Unexpected shape: {{tensor.shape}}"
         context = context.view(batch_size, seq_len, -1)
         
         output = self.output_proj(context)
@@ -208,7 +232,7 @@ class CustomMoERouter(torch.nn.Module):
         
         self.router = torch.nn.Linear(hidden_size, num_experts, bias=True)
     
-    def forward(self, hidden_states: torch.Tensor):
+    def forward(self, hidden_states: Array):
         """前向传播"""
         batch_size, seq_len, _ = hidden_states.shape
         
@@ -254,7 +278,7 @@ class CustomMoEExpert(torch.nn.Module):
         self.fc1 = torch.nn.Linear(hidden_size, ffn_hidden_size, bias=False)
         self.fc2 = torch.nn.Linear(ffn_hidden_size, hidden_size, bias=False)
     
-    def forward(self, hidden_states: torch.Tensor):
+    def forward(self, hidden_states: Array):
         """前向传播"""
         intermediate = self.fc1(hidden_states)
         
@@ -303,7 +327,7 @@ class CustomMoE(torch.nn.Module):
             for _ in range(num_experts)
         ])
     
-    def forward(self, hidden_states: torch.Tensor):
+    def forward(self, hidden_states: Array):
         """前向传播"""
         batch_size, seq_len, _ = hidden_states.shape
         
@@ -376,7 +400,7 @@ class CustomTransformerLayer(torch.nn.Module):
     
     def forward(
         self,
-        hidden_states: torch.Tensor,
+        hidden_states: Array,
         attention_mask: Optional[torch.Tensor] = None,
     ):
         """前向传播"""

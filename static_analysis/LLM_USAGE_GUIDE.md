@@ -7,7 +7,7 @@ This guide provides instructions for Large Language Models (LLMs) like Devin to 
 The ML Static Analysis Framework is designed to help LLMs analyze machine learning codebases, particularly those using PyTorch for distributed training. It provides a simple interface for LLMs to:
 
 1. Analyze specific files, directories, or components
-2. Run various static analysis tools (MyPy, PyTea, PyAssistant, TorchTyping, etc.)
+2. Run various static analysis tools (MyPy, PyTea, PyAssistant, JaxType, etc.)
 3. Generate comprehensive reports with findings and recommendations
 4. Identify potential issues before running code on GPUs
 

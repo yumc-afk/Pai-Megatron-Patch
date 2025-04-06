@@ -5,6 +5,8 @@ import re
 from typing import Dict, List, Optional, Any, Union
 
 from ml_static_analysis.core.analyzer import BaseAnalyzer
+from ml_static_analysis.core.report import AnalysisReport
+from ml_static_analysis.core.severity import Severity
 
 
 class PatternAnalyzer(BaseAnalyzer):
@@ -13,25 +15,25 @@ class PatternAnalyzer(BaseAnalyzer):
     This analyzer uses pattern matching to identify common issues in ML code.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None, verbose: bool = False):
+    def __init__(self, config):
         """Initialize the Pattern analyzer.
         
         Args:
-            config: Configuration for the analyzer.
-            verbose: Whether to enable verbose output.
+            config: Analysis configuration.
         """
-        super().__init__(verbose=verbose)
+        super().__init__(config)
         
-        self.config = config or {}
-        self.severity_threshold = self.config.get("severity_threshold", "info")
-        self.check_thread_safety = self.config.get("check_thread_safety", True)
-        self.check_error_handling = self.config.get("check_error_handling", True)
-        self.check_performance = self.config.get("check_performance", True)
-        self.check_tensor_operations = self.config.get("check_tensor_operations", True)
-        self.check_weight_switching = self.config.get("check_weight_switching", True)
-        self.check_distributed_training = self.config.get("check_distributed_training", True)
+        self.severity_threshold = "info"
+        self.check_thread_safety = True
+        self.check_error_handling = True
+        self.check_performance = True
+        self.check_tensor_operations = True
+        self.check_weight_switching = True
+        self.check_distributed_training = True
         
-        self.custom_patterns = self.config.get("custom_patterns", {})
+        self.custom_patterns = {}
+        if hasattr(config, "pattern_patterns"):
+            self.custom_patterns = {"custom": config.pattern_patterns}
     
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze a single file using pattern matching.
@@ -598,22 +600,72 @@ class PatternAnalyzer(BaseAnalyzer):
             "findings_by_category": findings_by_category,
             "findings_by_severity": findings_by_severity,
         }
+        
+    def analyze(self) -> AnalysisReport:
+        """Analyze the target specified in the configuration.
+        
+        Returns:
+            An AnalysisReport object containing the analysis results.
+        """
+        report = AnalysisReport()
+        
+        if hasattr(self.config, "target_file") and self.config.target_file:
+            files = [self.config.target_file]
+        elif hasattr(self.config, "target_dir") and self.config.target_dir:
+            files = []
+            for root, _, filenames in os.walk(self.config.target_dir):
+                for filename in filenames:
+                    if filename.endswith(".py"):
+                        files.append(os.path.join(root, filename))
+        else:
+            report.add_error("No target file or directory specified in the configuration.")
+            return report
+        
+        results = self.analyze_files(files)
+        
+        if not results.get("success", False):
+            report.add_error(results.get("error", "Unknown error during pattern analysis."))
+            return report
+        
+        for file_path, file_findings in results.get("findings", {}).items():
+            for category, category_findings in file_findings.items():
+                for finding in category_findings:
+                    severity_str = finding.get("severity", "info")
+                    severity = Severity.from_str(severity_str)
+                    
+                    message = finding.get("message", "")
+                    line = finding.get("line", 0)
+                    
+                    report.add_finding(
+                        analyzer=self.name,
+                        file_path=file_path,
+                        line=line,
+                        message=message,
+                        severity=severity,
+                        category=category,
+                        content=finding.get("content", ""),
+                    )
+        
+        return report
 
 
 def run_pattern_analysis(
     files: List[str],
-    config: Optional[Dict[str, Any]] = None,
-    verbose: bool = False,
+    config=None,
 ) -> Dict[str, Any]:
     """Run pattern analysis on the specified files.
     
     Args:
         files: List of file paths to analyze.
-        config: Configuration for the analyzer.
-        verbose: Whether to enable verbose output.
+        config: Analysis configuration.
         
     Returns:
         A dictionary with analysis results.
     """
-    analyzer = PatternAnalyzer(config=config, verbose=verbose)
+    if config is None:
+        from ml_static_analysis.core.config import AnalysisConfig
+        config = AnalysisConfig()
+        config.target_files = files
+    
+    analyzer = PatternAnalyzer(config)
     return analyzer.analyze_files(files)

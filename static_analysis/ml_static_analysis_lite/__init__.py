@@ -20,7 +20,7 @@ from ml_static_analysis.llm_interface import (
     analyze_component as _analyze_component,
 )
 
-LITE_ANALYZERS = ["mypy", "pytea", "pyassistant", "torchtyping"]
+LITE_ANALYZERS = ["mypy", "pytea", "pyassistant", "jaxtype"]
 
 def analyze_codebase(
     file_path: Optional[str] = None,

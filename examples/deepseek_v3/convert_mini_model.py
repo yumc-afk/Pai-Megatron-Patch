@@ -5,6 +5,10 @@
 import os
 import sys
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import argparse
 import math
 from collections import defaultdict

@@ -188,7 +188,7 @@ class AnalysisConfig:
         """
         lite_config = {}
         
-        core_analyzers = ["mypy", "pytea", "pyassistant", "torchtyping"]
+        core_analyzers = ["mypy", "pytea", "pyassistant", "jaxtype"]
         
         for analyzer in core_analyzers:
             if analyzer in self.config:

@@ -93,6 +93,7 @@ class AnalysisReport:
         }
         self.success = True
         self.error_message = None
+        self.analyzer_results = {}
     
     def add_error(self, file_path: str, line: int, message: str, code: Optional[str] = None) -> None:
         """Add an error to the report.
@@ -167,6 +168,11 @@ class AnalysisReport:
         """
         if file_path not in self.findings:
             self.findings[file_path] = {}
+        
+        if isinstance(self.findings[file_path], list):
+            findings_list = self.findings[file_path]
+            self.findings[file_path] = {}
+            self.findings[file_path]["general"] = findings_list
         
         if category not in self.findings[file_path]:
             self.findings[file_path][category] = []
@@ -278,6 +284,80 @@ class AnalysisReport:
         """
         return self.suggestions
     
+    def add_analyzer_results(self, analyzer_name: str, results: Dict[str, Any]) -> None:
+        """Add analyzer results to the report.
+        
+        Args:
+            analyzer_name: Name of the analyzer.
+            results: Results from the analyzer.
+        """
+        self.analyzer_results[analyzer_name] = results
+        
+        if "summary" in results:
+            summary = results["summary"]
+            
+            if "analyzed_files" in summary:
+                self.summary["analyzed_files"] += summary["analyzed_files"]
+            
+            if "total_findings" in summary:
+                self.summary["total_findings"] += summary["total_findings"]
+            
+            if "findings_by_category" in summary:
+                for category, count in summary["findings_by_category"].items():
+                    if category not in self.summary["findings_by_category"]:
+                        self.summary["findings_by_category"][category] = 0
+                    self.summary["findings_by_category"][category] += count
+            
+            if "findings_by_severity" in summary:
+                for severity, count in summary["findings_by_severity"].items():
+                    if severity in self.summary["findings_by_severity"]:
+                        self.summary["findings_by_severity"][severity] += count
+        
+        if "findings" in results:
+            findings = results["findings"]
+            
+            for file_path, file_findings in findings.items():
+                if isinstance(file_findings, list):
+                    for finding in file_findings:
+                        severity = finding.get("severity", "info")
+                        
+                        if severity == "error":
+                            self.add_error(
+                                file_path=file_path,
+                                line=finding.get("line", 0),
+                                message=finding.get("message", ""),
+                                code=finding.get("code")
+                            )
+                        elif severity == "warning":
+                            self.add_warning(
+                                file_path=file_path,
+                                line=finding.get("line", 0),
+                                message=finding.get("message", ""),
+                                code=finding.get("code")
+                            )
+                        else:
+                            self.add_suggestion(
+                                file_path=file_path,
+                                line=finding.get("line", 0),
+                                message=finding.get("message", ""),
+                                code=finding.get("code")
+                            )
+                elif isinstance(file_findings, dict):
+                    for category, category_findings in file_findings.items():
+                        if isinstance(category_findings, list):
+                            for finding in category_findings:
+                                self.add_finding(file_path, category, finding)
+                        else:
+                            self.add_finding(file_path, category, category_findings)
+    
+    def get_total_findings_count(self) -> int:
+        """Get the total number of findings.
+        
+        Returns:
+            The total number of findings.
+        """
+        return self.summary["total_findings"]
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert the report to a dictionary.
         
@@ -292,7 +372,8 @@ class AnalysisReport:
             "errors": self.errors,
             "warnings": self.warnings,
             "suggestions": self.suggestions,
-            "findings": self.findings
+            "findings": self.findings,
+            "analyzer_results": self.analyzer_results
         }
     
     @classmethod
@@ -478,9 +559,9 @@ class ReportGenerator:
                 report += "- Add shape assertions before critical tensor operations\n"
                 report += "- Consider adding more explicit dimension checks\n"
                 report += "- Document expected tensor shapes in function docstrings\n\n"
-            elif analyzer_name == "TorchTyping":
+            elif analyzer_name == "JaxType":
                 report += "- Add shape information to tensor type annotations\n"
-                report += "- Use TorchTyping to specify tensor shapes, dimensions, and dtypes\n"
+                report += "- Use JaxType to specify tensor shapes, dimensions, and dtypes\n"
                 report += "- Add runtime shape validation for critical tensor operations\n"
                 report += "- Consider adding shape assertions at function boundaries\n\n"
             elif analyzer_name == "PyAssistant":

@@ -30,7 +30,7 @@ MyPy作为通用Python类型检查器，与专业的PyTorch分析工具形成互
 | 工具 | 主要职责 | 互补性 |
 |------|---------|--------|
 | MyPy | 基础Python类型检查 | 提供广泛的类型安全基础 |
-| TorchTyping | 张量形状和维度检查 | 在MyPy基础上添加张量特定约束 |
+| JaxType | 张量形状和维度检查 | 在MyPy基础上添加张量特定约束 |
 | PyTea | 张量形状流分析 | 提供MyPy无法实现的动态形状追踪 |
 | PyAssist | PyTorch特定模式检测 | 捕获MyPy无法检测的领域特定反模式 |
 
@@ -50,20 +50,20 @@ MyPy作为通用Python类型检查器，与专业的PyTorch分析工具形成互
 ### 分层分析策略
 
 1. **基础层(MyPy)**：首先运行MyPy捕获基本类型错误
-2. **张量类型层(TorchTyping)**：然后检查张量特定类型约束
+2. **张量类型层(JaxType)**：然后检查张量特定类型约束
 3. **形状流层(PyTea)**：最后分析复杂的张量形状流动
 
 ### 交叉验证策略
 
 当发现潜在问题时，使用多个工具交叉验证：
 
-1. 如果MyPy报告函数参数类型错误，使用TorchTyping验证张量形状
+1. 如果MyPy报告函数参数类型错误，使用JaxType验证张量形状
 2. 如果PyTea报告形状不匹配，检查MyPy是否也标记了相关函数
 
 ### 增量改进策略
 
 1. 先修复MyPy发现的基础类型错误
-2. 然后添加TorchTyping注解解决张量特定问题
+2. 然后添加JaxType注解解决张量特定问题
 3. 最后使用PyTea分析解决复杂的形状流问题
 
 ## MyPy输出解读框架
@@ -189,10 +189,10 @@ def process_experts(module: nn.Module) -> None:
 ```python
 from typing import List, Dict, Optional, Union, Tuple
 import torch
-from torchtyping import TensorType, patch_typeguard
+from jaxtyping import Array
 from typeguard import typechecked
 
-patch_typeguard()  # 使TorchTyping与typeguard兼容
+# JaxType不需要patch_typeguard，它原生支持typeguard
 
 @typechecked
 def process_batch(

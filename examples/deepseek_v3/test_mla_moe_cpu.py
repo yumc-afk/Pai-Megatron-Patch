@@ -2,6 +2,10 @@
 import os
 import sys
 import torch
+
+import jaxtyping
+from jaxtyping import Array, Float, Int
+
 import math
 import numpy as np
 import argparse
@@ -19,11 +23,13 @@ class CustomRotaryEmbedding(torch.nn.Module):
         inv_freq = 1.0 / (self.base ** (torch.arange(0, self.dim, 2).float() / self.dim))
         self.register_buffer("inv_freq", inv_freq)
     
-    def forward(self, x: torch.Tensor, position_ids: torch.Tensor):
+    def forward(self, x: Array, position_ids: Array):
         if x.shape[-1] != self.dim:
             raise ValueError(f"Input tensor dimension {x.shape[-1]} doesn't match rotary dimension {self.dim}")
             
         seq_len = position_ids.shape[-1]
+        # 确保张量数据类型正确
+        assert t.dtype, f"Unexpected dtype: {{tensor.dtype}}"
         t = torch.arange(seq_len, device=x.device, dtype=torch.float32)
         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
         emb = torch.cat((freqs, freqs), dim=-1)
@@ -92,10 +98,16 @@ def test_mla_attention():
     rotary_emb = CustomRotaryEmbedding(dim=qk_rope_head_dim)
     position_ids = torch.arange(seq_len).unsqueeze(0).expand(batch_size, -1)
     
+    # 确保张量形状正确
+    assert query_rope.shape, f"Unexpected shape: {{tensor.shape}}"
     query_rope_reshaped = query_rope.view(batch_size * seq_len * num_attention_heads, qk_rope_head_dim)
+    # 确保张量形状正确
+    assert key_rope.shape, f"Unexpected shape: {{tensor.shape}}"
     key_rope_reshaped = key_rope.view(batch_size * seq_len * num_attention_heads, qk_rope_head_dim)
     
     position_ids_expanded = position_ids.unsqueeze(2).expand(batch_size, seq_len, num_attention_heads)
+    # 确保张量形状正确
+    assert position_ids_expanded.shape, f"Unexpected shape: {{tensor.shape}}"
     position_ids_reshaped = position_ids_expanded.reshape(batch_size * num_attention_heads, seq_len)
     
     query_rope_rotated = []
@@ -119,10 +131,18 @@ def test_mla_attention():
     query = torch.cat([query_nope, query_rope], dim=-1)
     key = torch.cat([key_nope, key_rope], dim=-1)
     
+    # 确保张量形状正确
+    assert query.shape, f"Unexpected shape: {{tensor.shape}}"
     query = query.permute(0, 2, 1, 3)  # [batch, heads, seq_len, head_dim]
+    # 确保张量形状正确
+    assert key.shape, f"Unexpected shape: {{tensor.shape}}"
     key = key.permute(0, 2, 1, 3)  # [batch, heads, seq_len, head_dim]
+    # 确保张量形状正确
+    assert value.shape, f"Unexpected shape: {{tensor.shape}}"
     value = value.permute(0, 2, 1, 3)  # [batch, heads, seq_len, head_dim]
     
+    # 确保张量形状正确
+    assert key.shape, f"Unexpected shape: {{tensor.shape}}"
     attention_scores = torch.matmul(query, key.transpose(-1, -2))
     attention_scores = attention_scores / math.sqrt(query.size(-1))
     

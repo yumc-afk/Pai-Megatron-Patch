@@ -75,7 +75,7 @@ ml-analyze-lite --dir /path/to/dir
 ## LLM关键功能
 
 1. **张量形状分析**：使用PyTea检测潜在的张量形状不匹配问题
-2. **类型检查**：使用TorchTyping增强对张量形状和维度的类型检查
+2. **类型检查**：使用JaxType增强对张量形状和维度的类型检查
 3. **代码质量分析**：使用PyAssistant检测常见的PyTorch编程错误
 4. **自动修复功能**：自动修复分析器检测到的常见问题
 5. **全面报告**：生成包含发现和建议的详细报告
@@ -151,7 +151,7 @@ results = analyze_codebase(
 ```python
 results = analyze_codebase(
     file_path="/path/to/file.py",
-    analyzers=["mypy", "pytea", "pyassistant", "torchtyping"]
+    analyzers=["mypy", "pytea", "pyassistant", "jaxtype"]
 )
 ```
 

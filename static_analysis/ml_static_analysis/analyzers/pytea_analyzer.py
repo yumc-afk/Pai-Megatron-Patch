@@ -7,6 +7,8 @@ import tempfile
 from typing import Dict, List, Optional, Any, Union
 
 from ml_static_analysis.core.analyzer import BaseAnalyzer
+from ml_static_analysis.core.report import AnalysisReport
+from ml_static_analysis.core.severity import Severity
 
 
 class PyTeaAnalyzer(BaseAnalyzer):
@@ -16,21 +18,30 @@ class PyTeaAnalyzer(BaseAnalyzer):
     potential shape-related issues.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None, verbose: bool = False):
+    def __init__(self, config):
         """Initialize the PyTea analyzer.
         
         Args:
-            config: Configuration for the analyzer.
-            verbose: Whether to enable verbose output.
+            config: Analysis configuration.
         """
-        super().__init__(verbose=verbose)
+        super().__init__(config)
         
-        self.config = config or {}
-        self.max_depth = self.config.get("max_depth", 10)
-        self.timeout = self.config.get("timeout", 60)
-        self.check_shapes = self.config.get("check_shapes", True)
-        self.check_dtypes = self.config.get("check_dtypes", True)
-        self.check_devices = self.config.get("check_devices", True)
+        self.max_depth = 10
+        self.timeout = 60
+        self.check_shapes = True
+        self.check_dtypes = True
+        self.check_devices = True
+        
+        if hasattr(config, "pytea_max_depth"):
+            self.max_depth = config.pytea_max_depth
+        if hasattr(config, "pytea_timeout"):
+            self.timeout = config.pytea_timeout
+        if hasattr(config, "pytea_check_shapes"):
+            self.check_shapes = config.pytea_check_shapes
+        if hasattr(config, "pytea_check_dtypes"):
+            self.check_dtypes = config.pytea_check_dtypes
+        if hasattr(config, "pytea_check_devices"):
+            self.check_devices = config.pytea_check_devices
     
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze a single file using PyTea.
@@ -243,22 +254,72 @@ class PyTeaAnalyzer(BaseAnalyzer):
             "findings_by_category": findings_by_category,
             "findings_by_severity": findings_by_severity,
         }
+        
+    def analyze(self) -> AnalysisReport:
+        """Analyze the target specified in the configuration.
+        
+        Returns:
+            An AnalysisReport object containing the analysis results.
+        """
+        report = AnalysisReport()
+        
+        if hasattr(self.config, "target_file") and self.config.target_file:
+            files = [self.config.target_file]
+        elif hasattr(self.config, "target_dir") and self.config.target_dir:
+            files = []
+            for root, _, filenames in os.walk(self.config.target_dir):
+                for filename in filenames:
+                    if filename.endswith(".py"):
+                        files.append(os.path.join(root, filename))
+        else:
+            report.add_error("No target file or directory specified in the configuration.")
+            return report
+        
+        results = self.analyze_files(files)
+        
+        if not results.get("success", False):
+            report.add_error(results.get("error", "Unknown error during PyTea analysis."))
+            return report
+        
+        for file_path, file_findings in results.get("findings", {}).items():
+            for finding in file_findings:
+                severity_str = finding.get("severity", "info")
+                severity = Severity.from_str(severity_str)
+                
+                message = finding.get("message", "")
+                line = finding.get("line", 0)
+                category = finding.get("category", "other")
+                
+                report.add_finding(
+                    analyzer=self.name,
+                    file_path=file_path,
+                    line=line,
+                    message=message,
+                    severity=severity,
+                    category=category,
+                    content=finding.get("content", ""),
+                )
+        
+        return report
 
 
 def run_pytea_analysis(
     files: List[str],
-    config: Optional[Dict[str, Any]] = None,
-    verbose: bool = False,
+    config=None,
 ) -> Dict[str, Any]:
     """Run PyTea analysis on the specified files.
     
     Args:
         files: List of file paths to analyze.
-        config: Configuration for the analyzer.
-        verbose: Whether to enable verbose output.
+        config: Analysis configuration.
         
     Returns:
         A dictionary with analysis results.
     """
-    analyzer = PyTeaAnalyzer(config=config, verbose=verbose)
+    if config is None:
+        from ml_static_analysis.core.config import AnalysisConfig
+        config = AnalysisConfig()
+        config.target_files = files
+    
+    analyzer = PyTeaAnalyzer(config)
     return analyzer.analyze_files(files)

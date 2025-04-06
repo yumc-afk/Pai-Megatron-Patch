@@ -7,7 +7,7 @@
 1. [快速开始](#快速开始)
 2. [工具详解](#工具详解)
    - [PyTea 张量形状分析](#pytea-张量形状分析)
-   - [TorchTyping 类型增强](#torchtyping-类型增强)
+   - [JaxType 类型增强](#jaxtype-类型增强)
    - [PyAssist 模式检测](#pyassist-模式检测)
    - [分布式同步验证](#分布式同步验证)
    - [符号执行工具](#符号执行工具)
@@ -101,26 +101,24 @@ PyTea的分析结果包含以下几个部分：
 - 涉及的张量及其形状
 - 导致错误的操作
 
-### TorchTyping 类型增强
+### JaxType 类型增强
 
-TorchTyping提供了增强的类型注解功能，允许在类型系统中指定张量的形状、维度和数据类型。
+JaxType提供了增强的类型注解功能，允许在类型系统中指定张量的形状、维度和数据类型。作为TorchTyping的现代替代品，JaxType提供了更强大的类型检查能力和更好的与现代Python类型系统的集成。
 
 #### 添加类型注解
 
-在代码中添加TorchTyping类型注解：
+在代码中添加JaxType类型注解：
 
 ```python
-from torchtyping import TensorType, patch_typeguard
+from jaxtyping import Array
 from typeguard import typechecked
 import torch
 
-patch_typeguard()  # 使TorchTyping与typeguard兼容
-
 @typechecked
 def process_batch(
-    input_ids: TensorType["batch_size", "seq_len", dtype=torch.long],
-    attention_mask: TensorType["batch_size", "seq_len", dtype=torch.bool]
-) -> TensorType["batch_size", "seq_len", "hidden_size"]:
+    input_ids: Array["batch_size seq_len", torch.long],
+    attention_mask: Array["batch_size seq_len", torch.bool]
+) -> Array["batch_size seq_len hidden_size", torch.float]:
     # 函数实现...
     return output
 ```
@@ -136,7 +134,7 @@ python static_analysis/tools/type_checker.py --file examples/deepseek_v3/test_ml
 
 #### 自动添加类型注解
 
-我们的工具还可以自动为代码添加TorchTyping类型注解：
+我们的工具还可以自动为代码添加JaxType类型注解：
 
 ```bash
 # 自动添加类型注解

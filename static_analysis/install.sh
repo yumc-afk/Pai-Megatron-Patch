@@ -46,8 +46,8 @@ fi
 echo -e "${YELLOW}安装基本依赖...${NC}"
 pip install torch numpy mypy
 
-echo -e "${YELLOW}安装TorchTyping...${NC}"
-pip install torchtyping
+echo -e "${YELLOW}安装JaxType...${NC}"
+pip install jaxtyping
 
 if [[ $version_choice == "1" ]]; then
     echo -e "${YELLOW}安装标准版依赖...${NC}"
@@ -79,7 +79,7 @@ if [[ $version_choice == "1" ]]; then
     pip install -e .
     
     echo -e "${YELLOW}验证安装...${NC}"
-    python3 -c "import torch; import torchtyping; import z3; import crosshair; print('标准版依赖已成功安装')"
+    python3 -c "import torch; import jaxtyping; import z3; import crosshair; print('标准版依赖已成功安装')"
     
     echo -e "${GREEN}标准版安装完成!${NC}"
 else
@@ -90,7 +90,7 @@ else
     pip install -e .[lite]
     
     echo -e "${YELLOW}验证安装...${NC}"
-    python3 -c "import torch; import torchtyping; import ml_static_analysis_lite; print('精简版依赖已成功安装')"
+    python3 -c "import torch; import jaxtyping; import ml_static_analysis_lite; print('精简版依赖已成功安装')"
     
     echo -e "${GREEN}精简版安装完成!${NC}"
 fi

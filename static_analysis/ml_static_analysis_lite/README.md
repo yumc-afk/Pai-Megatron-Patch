@@ -9,7 +9,7 @@ This is the lite version of the ML Static Analysis Framework, which includes onl
   - MyPy: Static type checking for Python
   - PyTea: Tensor shape analysis for PyTorch
   - PyAssistant: Code quality analysis for Python
-  - TorchTyping: Tensor type analysis for PyTorch
+  - JaxType: Enhanced tensor type analysis for PyTorch
 - Simplified interface for LLMs
 - Auto-fix capabilities for common issues
 
