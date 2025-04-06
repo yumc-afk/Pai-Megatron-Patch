@@ -29,12 +29,14 @@ setup(
         "numpy>=1.24.0",
         "mypy>=1.0.0",
         "typing-extensions>=4.5.0",
+        "jinja2>=3.0.0",
     ],
     extras_require={
         "lite": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
             "jaxtyping>=0.2.20",
+            "jinja2>=3.0.0",
         ],
         "standard": [
             "mypy>=1.0.0",
@@ -43,6 +45,7 @@ setup(
             "pylint>=2.17.0",
             "flake8>=6.0.0",
             "pytest>=7.0.0",
+            "jinja2>=3.0.0",
         ],
         "all": [
             "mypy>=1.0.0",
@@ -52,6 +55,7 @@ setup(
             "flake8>=6.0.0",
             "pytest>=7.0.0",
             "crosshair-tool>=0.0.31",
+            "jinja2>=3.0.0",
         ],
     },
     entry_points={

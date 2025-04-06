@@ -23,7 +23,7 @@ read -p "请选择 [1/2] (默认: 1): " version_choice
 version_choice=${version_choice:-1}
 
 echo -e "${YELLOW}安装基本依赖...${NC}"
-pip install torch numpy
+pip install torch numpy jinja2
 
 if [[ $version_choice == "1" ]]; then
     echo -e "${YELLOW}安装标准版...${NC}"
