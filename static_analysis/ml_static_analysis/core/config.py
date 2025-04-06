@@ -19,12 +19,12 @@ class AnalysisConfig:
             "ignore_missing_imports": True
         },
         "pytea": {
-            "enabled": True,
+            "enabled": False,
             "max_depth": 10,
             "timeout": 60
         },
         "pyassistant": {
-            "enabled": True,
+            "enabled": False,
             "severity_threshold": "info"
         },
         "jaxtype": {
