@@ -76,9 +76,9 @@ def setup_argparse() -> argparse.ArgumentParser:
         help="Run PyAssistant code quality analysis",
     )
     analyzer_group.add_argument(
-        "--torchtyping",
+        "--jaxtype",
         action="store_true",
-        help="Run TorchTyping tensor type analysis",
+        help="Run JaxType tensor type analysis",
     )
     analyzer_group.add_argument(
         "--pattern",
@@ -236,7 +236,7 @@ def run_analyzers(
     run_mypy = args.mypy or args.all or (args.lite and config.is_analyzer_enabled("mypy"))
     run_pytea = args.pytea or args.all or (args.lite and config.is_analyzer_enabled("pytea"))
     run_pyassistant = args.pyassistant or args.all or (args.lite and config.is_analyzer_enabled("pyassistant"))
-    run_torchtyping = args.torchtyping or args.all or (args.lite and config.is_analyzer_enabled("torchtyping"))
+    run_jaxtype = args.jaxtype or args.all or (args.lite and config.is_analyzer_enabled("jaxtype"))
     run_pattern = args.pattern or args.all
     
     if run_mypy:
@@ -287,21 +287,21 @@ def run_analyzers(
             print("Warning: PyAssistant analyzer not available.")
             results["PyAssistant"] = {"success": False, "error": "PyAssistant analyzer not available."}
     
-    if run_torchtyping:
+    if run_jaxtype:
         try:
-            from ml_static_analysis.analyzers.torchtyping_analyzer import run_torchtyping_analysis
+            from ml_static_analysis.analyzers.jaxtype_analyzer import run_jaxtype_analysis
             
-            print("Running TorchTyping tensor type analysis...")
-            torchtyping_results = run_torchtyping_analysis(
+            print("Running JaxType tensor type analysis...")
+            jaxtype_results = run_jaxtype_analysis(
                 files,
-                config.get_analyzer_config("torchtyping"),
+                config.get_analyzer_config("jaxtype"),
                 verbose=args.verbose,
             )
             
-            results["TorchTyping"] = torchtyping_results
+            results["JaxType"] = jaxtype_results
         except ImportError:
-            print("Warning: TorchTyping analyzer not available.")
-            results["TorchTyping"] = {"success": False, "error": "TorchTyping analyzer not available."}
+            print("Warning: JaxType analyzer not available.")
+            results["JaxType"] = {"success": False, "error": "JaxType analyzer not available."}
     
     if run_pattern:
         try:
@@ -348,10 +348,10 @@ def run_analyzers(
                     dry_run=args.autofix_dry_run,
                 )
             
-            if "TorchTyping" in results and results["TorchTyping"].get("success", False):
+            if "JaxType" in results and results["JaxType"].get("success", False):
                 autofix_manager.apply_fixes(
-                    results["TorchTyping"],
-                    "torchtyping",
+                    results["JaxType"],
+                    "jaxtype",
                     dry_run=args.autofix_dry_run,
                 )
             
