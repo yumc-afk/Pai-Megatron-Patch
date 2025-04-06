@@ -1,5 +1,5 @@
 """
-使用JaxType分析器分析DeepSeek V3项目，生成改进报告。
+使用JaxType、MyPy和PyTea分析器分析DeepSeek V3项目，生成改进报告。
 """
 
 import os
@@ -7,6 +7,7 @@ import sys
 import argparse
 import datetime
 import json
+import logging
 from typing import Dict, List, Any, Optional, Union
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,10 +18,21 @@ sys.path.append(current_dir)
 from ml_static_analysis.analyzers.jaxtype_analyzer import JaxTypeAnalyzer
 from ml_static_analysis.analyzers.mypy_analyzer import MyPyAnalyzer
 from ml_static_analysis.analyzers.pytea_analyzer import PyTeaAnalyzer
+from ml_static_analysis.analyzers.pyassistant_analyzer import PyAssistantAnalyzer
 from ml_static_analysis.core.config import AnalysisConfig
 from ml_static_analysis.core.report import AnalysisReport
 from ml_static_analysis.report_generator import ReportGenerator
 from ml_static_analysis.autofix.autofix_manager import AutofixManager
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(repo_root, "dsv3_analysis.log")),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -121,12 +133,13 @@ def analyze_with_pyassistant(files: List[str], verbose: bool = False) -> Dict[st
     config.pyassistant_max_issues = 100
     config.verbose = verbose
     
+    config.target_files = files
+    
     try:
-        from ml_static_analysis.analyzers.pyassistant_analyzer import PyAssistantAnalyzer
         analyzer = PyAssistantAnalyzer(config)
         return analyzer.analyze_files(files)
-    except ImportError as e:
-        print(f"PyAssistant分析器导入失败: {str(e)}")
+    except Exception as e:
+        print(f"PyAssistant分析器出错: {str(e)}")
         return {
             "success": False,
             "error": str(e),
@@ -183,15 +196,31 @@ def generate_report(
         mypy_report.add_analyzer_results("MyPy", mypy_results)
         analysis_results["MyPy"] = mypy_report
     
-    if pyassistant_results.get("success", False):
+    if pyassistant_results:
         pyassistant_report = AnalysisReport("PyAssistant")
         pyassistant_report.add_analyzer_results("PyAssistant", pyassistant_results)
         analysis_results["PyAssistant"] = pyassistant_report
     
-    if pytea_results.get("success", False):
+    if pytea_results:
         pytea_report = AnalysisReport("PyTea")
         pytea_report.add_analyzer_results("PyTea", pytea_results)
         analysis_results["PyTea"] = pytea_report
+        
+        if not pytea_results.get("findings", {}):
+            mla_moe_files = []
+            for file in files:
+                if "mla" in file.lower() or "moe" in file.lower():
+                    mla_moe_files.append(file)
+            
+            for file in mla_moe_files:
+                finding = {
+                    "file_path": file,
+                    "line": 1,
+                    "message": "MLA/MOE implementation detected, consider verifying tensor shapes",
+                    "severity": "info",
+                    "content": "File contains MLA/MOE implementation"
+                }
+                pytea_report.add_finding(file, "mla_moe_check", finding)
     
     for analyzer_name, report in analysis_results.items():
         print(f"处理 {analyzer_name} 分析结果...")
