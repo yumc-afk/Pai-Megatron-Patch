@@ -64,8 +64,8 @@ class AutofixManager:
                         fixed = self._apply_pytea_fixes({file_path: [error]}, dry_run)
                     elif analyzer_name == "PyAssistantAnalyzer":
                         fixed = self._apply_pyassistant_fixes({file_path: {"error": [error]}}, dry_run)
-                    elif analyzer_name == "TorchTypingAnalyzer":
-                        fixed = self._apply_torchtyping_fixes({file_path: [error]}, dry_run)
+                    elif analyzer_name == "JaxTypeAnalyzer":
+                        fixed = self._apply_jaxtype_fixes({file_path: [error]}, dry_run)
                     elif analyzer_name == "PatternAnalyzer":
                         fixed = self._apply_pattern_fixes({file_path: {"error": [error]}}, dry_run)
                     else:
@@ -94,8 +94,8 @@ class AutofixManager:
                         fixed = self._apply_pytea_fixes({file_path: [warning]}, dry_run)
                     elif analyzer_name == "PyAssistantAnalyzer":
                         fixed = self._apply_pyassistant_fixes({file_path: {"warning": [warning]}}, dry_run)
-                    elif analyzer_name == "TorchTypingAnalyzer":
-                        fixed = self._apply_torchtyping_fixes({file_path: [warning]}, dry_run)
+                    elif analyzer_name == "JaxTypeAnalyzer":
+                        fixed = self._apply_jaxtype_fixes({file_path: [warning]}, dry_run)
                     elif analyzer_name == "PatternAnalyzer":
                         fixed = self._apply_pattern_fixes({file_path: {"warning": [warning]}}, dry_run)
                     else:
@@ -408,15 +408,15 @@ class AutofixManager:
         
         return False, line
     
-    def _apply_torchtyping_fixes(
+    def _apply_jaxtype_fixes(
         self,
         findings: Dict[str, Any],
         dry_run: bool = True,
     ) -> None:
-        """Apply auto-fixes to issues found by TorchTyping.
+        """Apply auto-fixes to issues found by JaxType.
         
         Args:
-            findings: Dictionary with findings from TorchTyping.
+            findings: Dictionary with findings from JaxType.
             dry_run: Whether to only simulate applying fixes without actually modifying files.
         """
         for file_path, file_findings in findings.items():
@@ -440,17 +440,17 @@ class AutofixManager:
                 if line_num <= 0 or line_num > len(lines):
                     continue
                 
-                fixed, new_line = self._fix_torchtyping_error(lines[line_num - 1], message)
+                fixed, new_line = self._fix_jaxtype_error(lines[line_num - 1], message)
                 
                 if fixed:
                     if self.verbose:
-                        print(f"Fixed TorchTyping error in {file_path}:{line_num}: {message}")
+                        print(f"Fixed JaxType error in {file_path}:{line_num}: {message}")
                     
                     lines[line_num - 1] = new_line
                     file_modified = True
                     
                     self.fixes_applied.append({
-                        "analyzer": "TorchTyping",
+                        "analyzer": "JaxType",
                         "file": file_path,
                         "line": line_num,
                         "message": message,
@@ -466,12 +466,12 @@ class AutofixManager:
                     if self.verbose:
                         print(f"Error writing file {file_path}: {str(e)}")
     
-    def _fix_torchtyping_error(self, line: str, message: str) -> Tuple[bool, str]:
-        """Fix a TorchTyping error in a line of code.
+    def _fix_jaxtype_error(self, line: str, message: str) -> Tuple[bool, str]:
+        """Fix a JaxType error in a line of code.
         
         Args:
             line: The line of code with the error.
-            message: The error message from TorchTyping.
+            message: The error message from JaxType.
             
         Returns:
             A tuple of (fixed, new_line) where fixed is a boolean indicating
@@ -483,22 +483,22 @@ class AutofixManager:
                 var_name = match.group(1)
                 type_name = match.group(2)
                 if type_name == "torch.Tensor":
-                    new_line = line.replace(f"{var_name}: {type_name}", f"{var_name}: TensorType[..., torch.float]")
+                    new_line = line.replace(f"{var_name}: {type_name}", f"{var_name}: Array[..., torch.float]")
                     return True, new_line
         
-        if "TensorType is not defined" in message:
-            if "from torchtyping import" in line:
-                match = re.match(r"(\s*from\s+torchtyping\s+import\s+)([^#\n]*)", line)
+        if "Array is not defined" in message:
+            if "from jaxtyping import" in line:
+                match = re.match(r"(\s*from\s+jaxtyping\s+import\s+)([^#\n]*)", line)
                 if match:
                     imports = match.group(2).strip()
-                    if "TensorType" not in imports:
+                    if "Array" not in imports:
                         if imports.endswith(","):
-                            new_line = f"{match.group(1)}{imports} TensorType,\n"
+                            new_line = f"{match.group(1)}{imports} Array,\n"
                         else:
-                            new_line = f"{match.group(1)}{imports}, TensorType\n"
+                            new_line = f"{match.group(1)}{imports}, Array\n"
                         return True, new_line
             else:
-                new_line = "from torchtyping import TensorType\n" + line
+                new_line = "from jaxtyping import Array\n" + line
                 return True, new_line
         
         return False, line
