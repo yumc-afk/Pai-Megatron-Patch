@@ -11,7 +11,7 @@ The auto-fix feature supports fixing issues detected by the following analyzers:
 - **MyPy**: Type annotation issues
 - **PyTea**: Tensor shape and dimension issues
 - **PyAssistant**: Code quality and best practices
-- **TorchTyping**: Tensor type annotation issues
+- **JaxType**: Tensor type annotation issues
 - **Pattern Analysis**: Common ML code patterns and anti-patterns
 
 ## Using Auto-Fix from the Command Line
@@ -124,11 +124,12 @@ The auto-fix feature can fix various types of issues:
 - Best practices violations
 - Performance optimizations
 
-### TorchTyping Fixes
+### JaxType Fixes
 
 - Missing tensor type annotations
 - Incorrect tensor type annotations
-- Missing imports for TorchTyping
+- Missing imports for JaxType
+- Tensor shape constraints and validation
 
 ### Pattern Analysis Fixes
 
@@ -155,7 +156,7 @@ You can customize the auto-fix behavior by modifying the configuration file:
   "autofix": {
     "enabled": true,
     "dry_run": false,
-    "analyzers": ["mypy", "pytea", "pyassistant", "torchtyping", "pattern"],
+    "analyzers": ["mypy", "pytea", "pyassistant", "jaxtype", "pattern"],
     "severity_threshold": "warning"
   }
 }
