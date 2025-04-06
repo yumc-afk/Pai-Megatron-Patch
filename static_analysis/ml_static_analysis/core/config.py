@@ -27,9 +27,12 @@ class AnalysisConfig:
             "enabled": True,
             "severity_threshold": "info"
         },
-        "torchtyping": {
+        "jaxtype": {
             "enabled": True,
-            "severity_threshold": "info"
+            "severity_threshold": "info",
+            "check_shapes": True,
+            "check_dtypes": True,
+            "check_devices": True
         },
         "pattern_analysis": {
             "enabled": True,
@@ -37,15 +40,29 @@ class AnalysisConfig:
         }
     }
     
-    def __init__(self, config_path: Optional[str] = None, verbose: bool = False):
+    def __init__(self, 
+                 config_path: Optional[str] = None, 
+                 verbose: bool = False,
+                 target_path: Optional[str] = None,
+                 analyzers: Union[List[str], str] = "all",
+                 autofix_enabled: bool = False,
+                 autofix_dry_run: bool = False):
         """Initialize the configuration manager.
         
         Args:
             config_path: Path to a JSON configuration file. If None, default configuration will be used.
             verbose: Whether to enable verbose output.
+            target_path: Path to the target file or directory to analyze.
+            analyzers: List of analyzer names to use, or "all" to use all available analyzers.
+            autofix_enabled: Whether to enable automatic fixing of issues.
+            autofix_dry_run: Whether to run autofix in dry-run mode (show fixes but don't apply them).
         """
         self.verbose = verbose
         self.config = self.DEFAULT_CONFIG.copy()
+        self.target_path = target_path
+        self.analyzers = analyzers
+        self.autofix_enabled = autofix_enabled
+        self.autofix_dry_run = autofix_dry_run
         
         if config_path:
             self.load_config(config_path)

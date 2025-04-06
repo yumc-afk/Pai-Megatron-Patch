@@ -13,7 +13,7 @@ import logging
 from typing import Dict, List, Any, Optional, Union
 
 from ml_static_analysis.core.config import AnalysisConfig
-from ml_static_analysis.core.report import AnalysisReport, AnalysisWarning
+from ml_static_analysis.core.report import AnalysisReport
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +88,9 @@ class ReportGenerator:
         lines.append("## 分析摘要")
         lines.append("")
         
-        total_warnings = sum(len(report.warnings) for report in analysis_results.values())
-        total_errors = sum(len(report.errors) for report in analysis_results.values())
-        total_suggestions = sum(len(report.suggestions) for report in analysis_results.values())
+        total_warnings = sum(len(report.get_warnings()) for report in analysis_results.values())
+        total_errors = sum(len(report.get_errors()) for report in analysis_results.values())
+        total_suggestions = sum(len(report.get_suggestions()) for report in analysis_results.values())
         
         lines.append(f"- **总警告数**: {total_warnings}")
         lines.append(f"- **总错误数**: {total_errors}")
@@ -104,58 +104,75 @@ class ReportGenerator:
             if report.summary:
                 lines.append(f"### 摘要")
                 lines.append("")
-                lines.append(report.summary)
+                lines.append(str(report.summary))
                 lines.append("")
             
-            if report.errors:
-                lines.append(f"### 错误 ({len(report.errors)})")
+            errors = report.get_errors()
+            if errors:
+                lines.append(f"### 错误 ({len(errors)})")
                 lines.append("")
-                for error in report.errors:
-                    lines.append(f"- **{error.code}**: {error.message}")
-                    if error.file_path:
-                        lines.append(f"  - 文件: `{error.file_path}`")
-                    if error.line_number:
-                        lines.append(f"  - 行号: {error.line_number}")
-                    if error.suggestion:
-                        lines.append(f"  - 建议: {error.suggestion}")
+                for error in errors:
+                    code = error.get("code", "")
+                    message = error.get("message", "")
+                    file_path = error.get("file_path", "")
+                    line = error.get("line", 0)
+                    
+                    lines.append(f"- **{code}**: {message}")
+                    if file_path:
+                        lines.append(f"  - 文件: `{file_path}`")
+                    if line:
+                        lines.append(f"  - 行号: {line}")
                     lines.append("")
             
-            if report.warnings:
-                lines.append(f"### 警告 ({len(report.warnings)})")
+            warnings = report.get_warnings()
+            if warnings:
+                lines.append(f"### 警告 ({len(warnings)})")
                 lines.append("")
-                for warning in report.warnings:
-                    lines.append(f"- **{warning.code}**: {warning.message}")
-                    if warning.file_path:
-                        lines.append(f"  - 文件: `{warning.file_path}`")
-                    if warning.line_number:
-                        lines.append(f"  - 行号: {warning.line_number}")
-                    if warning.suggestion:
-                        lines.append(f"  - 建议: {warning.suggestion}")
+                for warning in warnings:
+                    code = warning.get("code", "")
+                    message = warning.get("message", "")
+                    file_path = warning.get("file_path", "")
+                    line = warning.get("line", 0)
+                    
+                    lines.append(f"- **{code}**: {message}")
+                    if file_path:
+                        lines.append(f"  - 文件: `{file_path}`")
+                    if line:
+                        lines.append(f"  - 行号: {line}")
                     lines.append("")
             
-            if report.suggestions:
-                lines.append(f"### 建议 ({len(report.suggestions)})")
+            suggestions = report.get_suggestions()
+            if suggestions:
+                lines.append(f"### 建议 ({len(suggestions)})")
                 lines.append("")
-                for suggestion in report.suggestions:
-                    lines.append(f"- **{suggestion.code}**: {suggestion.message}")
-                    if suggestion.file_path:
-                        lines.append(f"  - 文件: `{suggestion.file_path}`")
-                    if suggestion.line_number:
-                        lines.append(f"  - 行号: {suggestion.line_number}")
+                for suggestion in suggestions:
+                    code = suggestion.get("code", "")
+                    message = suggestion.get("message", "")
+                    file_path = suggestion.get("file_path", "")
+                    line = suggestion.get("line", 0)
+                    
+                    lines.append(f"- **{code}**: {message}")
+                    if file_path:
+                        lines.append(f"  - 文件: `{file_path}`")
+                    if line:
+                        lines.append(f"  - 行号: {line}")
                     lines.append("")
         
-        if self.config.autofix_enabled:
+        if hasattr(self.config, 'autofix_enabled') and self.config.autofix_enabled:
             lines.append("## 自动修复建议")
             lines.append("")
             
             autofix_count = 0
             for report in analysis_results.values():
-                for item in report.errors + report.warnings:
-                    if item.can_autofix:
+                for item in report.get_errors():
+                    if item.get("can_autofix", False) or item.get("severity", "") in ["error", "warning"]:
+                        autofix_count += 1
+                for item in report.get_warnings():
+                    if item.get("can_autofix", False) or item.get("severity", "") in ["error", "warning"]:
                         autofix_count += 1
             
             if autofix_count > 0:
-                lines.append(f"发现 {autofix_count} 个可自动修复的问题。")
+                lines.append(f"发现 {autofix_count} 个可能自动修复的问题。")
                 lines.append("运行以下命令应用自动修复:")
                 lines.append("")
                 lines.append("```bash")
@@ -182,29 +199,42 @@ class ReportGenerator:
             lines.append("")
             
             for analyzer_name, report in analysis_results.items():
-                for error in report.errors:
-                    lines.append(f"- [{analyzer_name}] **{error.code}**: {error.message}")
-                    if error.file_path:
-                        lines.append(f"  - 文件: `{error.file_path}`")
-                    if error.line_number:
-                        lines.append(f"  - 行号: {error.line_number}")
+                for error in report.get_errors():
+                    code = error.get("code", "")
+                    message = error.get("message", "")
+                    file_path = error.get("file_path", "")
+                    line = error.get("line", 0)
+                    
+                    lines.append(f"- [{analyzer_name}] **{code}**: {message}")
+                    if file_path:
+                        lines.append(f"  - 文件: `{file_path}`")
+                    if line:
+                        lines.append(f"  - 行号: {line}")
                     lines.append("")
         
         performance_suggestions = []
         for analyzer_name, report in analysis_results.items():
-            for suggestion in report.suggestions:
-                if "performance" in suggestion.tags or "memory" in suggestion.tags:
+            for suggestion in report.get_suggestions():
+                tags = suggestion.get("tags", [])
+                if isinstance(tags, str):
+                    tags = [tags]
+                if "performance" in tags or "memory" in tags:
                     performance_suggestions.append((analyzer_name, suggestion))
         
         if performance_suggestions:
             lines.append("### 性能优化建议")
             lines.append("")
             for analyzer_name, suggestion in performance_suggestions:
-                lines.append(f"- [{analyzer_name}] **{suggestion.code}**: {suggestion.message}")
-                if suggestion.file_path:
-                    lines.append(f"  - 文件: `{suggestion.file_path}`")
-                if suggestion.line_number:
-                    lines.append(f"  - 行号: {suggestion.line_number}")
+                code = suggestion.get("code", "")
+                message = suggestion.get("message", "")
+                file_path = suggestion.get("file_path", "")
+                line = suggestion.get("line", 0)
+                
+                lines.append(f"- [{analyzer_name}] **{code}**: {message}")
+                if file_path:
+                    lines.append(f"  - 文件: `{file_path}`")
+                if line:
+                    lines.append(f"  - 行号: {line}")
                 lines.append("")
         
         return "\n".join(lines)
@@ -218,20 +248,15 @@ class ReportGenerator:
                 "analyzers": list(analysis_results.keys())
             },
             "summary": {
-                "total_warnings": sum(len(report.warnings) for report in analysis_results.values()),
-                "total_errors": sum(len(report.errors) for report in analysis_results.values()),
-                "total_suggestions": sum(len(report.suggestions) for report in analysis_results.values())
+                "total_warnings": sum(len(report.get_warnings()) for report in analysis_results.values()),
+                "total_errors": sum(len(report.get_errors()) for report in analysis_results.values()),
+                "total_suggestions": sum(len(report.get_suggestions()) for report in analysis_results.values())
             },
             "results": {}
         }
         
         for analyzer_name, report in analysis_results.items():
-            report_data["results"][analyzer_name] = {
-                "summary": report.summary,
-                "errors": [error.to_dict() for error in report.errors],
-                "warnings": [warning.to_dict() for warning in report.warnings],
-                "suggestions": [suggestion.to_dict() for suggestion in report.suggestions]
-            }
+            report_data["results"][analyzer_name] = report.to_dict()
         
         return json.dumps(report_data, ensure_ascii=False, indent=2)
     
