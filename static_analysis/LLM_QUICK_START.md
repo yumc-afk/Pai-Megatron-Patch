@@ -1,98 +1,98 @@
-# ML Static Analysis Framework - LLM Quick Start Guide
+# ML静态分析框架 - LLM快速入门指南
 
-This guide provides a quick start for LLMs (Large Language Models) to use the ML Static Analysis Framework for analyzing ML/DL codebases.
+本指南为大型语言模型（LLMs）提供了使用ML静态分析框架分析ML/DL代码库的快速入门方法。
 
-## Overview
+## 概述
 
-The ML Static Analysis Framework is designed to help LLMs analyze ML/DL codebases without running the full training pipeline. It provides a set of static analysis tools that can detect common issues in ML/DL code, such as tensor shape mismatches, type errors, and performance issues.
+ML静态分析框架旨在帮助LLMs在不运行完整训练流程的情况下分析ML/DL代码库。它提供了一套静态分析工具，可以检测ML/DL代码中的常见问题，如张量形状不匹配、类型错误和性能问题。
 
-## Installation
+## 安装
 
-### Option 1: One-click Installation
+### 方式1：一键安装
 
 ```bash
-# Download the installation script
-curl -O https://raw.githubusercontent.com/haoweiliang1996/Pai-Megatron-Patch/main/static_analysis/install_pip.sh
+# 下载安装脚本
+curl -O https://raw.githubusercontent.com/yumc-afk/Pai-Megatron-Patch/main/static_analysis/install_pip.sh
 
-# Make it executable
+# 使脚本可执行
 chmod +x install_pip.sh
 
-# Run the installation script
+# 运行安装脚本
 ./install_pip.sh
 ```
 
-### Option 2: Manual Installation
+### 方式2：手动安装
 
 ```bash
-# Install the standard version
-pip install git+https://github.com/haoweiliang1996/Pai-Megatron-Patch.git#subdirectory=static_analysis
+# 安装标准版
+pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis
 
-# Or install the lite version
-pip install git+https://github.com/haoweiliang1996/Pai-Megatron-Patch.git#subdirectory=static_analysis[lite]
+# 或安装精简版
+pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis[lite]
 ```
 
-## Quick Usage for LLMs
+## LLM快速使用指南
 
-### Python Interface
+### Python接口
 
 ```python
-# Standard version
+# 标准版
 from ml_static_analysis.llm_interface import analyze_codebase
 
-# Analyze a file
+# 分析文件
 results = analyze_codebase(file_path="/path/to/file.py")
 
-# Analyze a directory
+# 分析目录
 results = analyze_codebase(dir_path="/path/to/dir")
 
-# Get the analysis report
+# 获取分析报告
 report = results["report"]
 print(report)
 
-# Lite version
+# 精简版
 from ml_static_analysis_lite import analyze_codebase
 
-# Analyze a file
+# 分析文件
 results = analyze_codebase(file_path="/path/to/file.py")
 
-# Get the analysis report
+# 获取分析报告
 report = results["report"]
 print(report)
 ```
 
-### Command Line Interface
+### 命令行接口
 
 ```bash
-# Standard version
+# 标准版
 ml-analyze --file /path/to/file.py
 ml-analyze --dir /path/to/dir
 
-# Lite version
+# 精简版
 ml-analyze-lite --file /path/to/file.py
 ml-analyze-lite --dir /path/to/dir
 ```
 
-## Key Features for LLMs
+## LLM关键功能
 
-1. **Tensor Shape Analysis**: Detect potential tensor shape mismatches using PyTea
-2. **Type Checking**: Enhance type checking with TorchTyping for tensor shapes and dimensions
-3. **Code Quality Analysis**: Detect common PyTorch programming errors using PyAssistant
-4. **Auto-fix Capabilities**: Automatically fix common issues detected by the analyzers
-5. **Comprehensive Reports**: Generate detailed reports with findings and recommendations
+1. **张量形状分析**：使用PyTea检测潜在的张量形状不匹配问题
+2. **类型检查**：使用TorchTyping增强对张量形状和维度的类型检查
+3. **代码质量分析**：使用PyAssistant检测常见的PyTorch编程错误
+4. **自动修复功能**：自动修复分析器检测到的常见问题
+5. **全面报告**：生成包含发现和建议的详细报告
 
-## LLM Workflow
+## LLM工作流程
 
-As an LLM, you can use this framework to:
+作为LLM，您可以使用此框架：
 
-1. **Analyze Code**: Analyze ML/DL codebases to detect potential issues
-2. **Generate Reports**: Generate detailed reports with findings and recommendations
-3. **Suggest Fixes**: Suggest fixes for detected issues or apply auto-fixes
-4. **Optimize Code**: Optimize code based on the analysis results
-5. **Validate Code**: Validate code without running the full training pipeline
+1. **分析代码**：分析ML/DL代码库以检测潜在问题
+2. **生成报告**：生成包含发现和建议的详细报告
+3. **建议修复**：为检测到的问题提供修复建议或应用自动修复
+4. **优化代码**：基于分析结果优化代码
+5. **验证代码**：在不运行完整训练流程的情况下验证代码
 
-## Example Workflow
+## 示例工作流程
 
-1. **Analyze the codebase**:
+1. **分析代码库**：
    ```python
    from ml_static_analysis.llm_interface import analyze_codebase
    
@@ -100,18 +100,18 @@ As an LLM, you can use this framework to:
    report = results["report"]
    ```
 
-2. **Review the findings**:
+2. **查看发现**：
    ```python
    findings = results["findings"]
    for finding in findings:
-       print(f"File: {finding['file']}")
-       print(f"Line: {finding['line']}")
-       print(f"Message: {finding['message']}")
-       print(f"Severity: {finding['severity']}")
+       print(f"文件: {finding['file']}")
+       print(f"行号: {finding['line']}")
+       print(f"消息: {finding['message']}")
+       print(f"严重性: {finding['severity']}")
        print()
    ```
 
-3. **Apply auto-fixes**:
+3. **应用自动修复**：
    ```python
    from ml_static_analysis.llm_interface import analyze_codebase
    
@@ -122,19 +122,19 @@ As an LLM, you can use this framework to:
    )
    ```
 
-4. **Generate a summary**:
+4. **生成摘要**：
    ```python
    summary = results["summary"]
-   print(f"Analyzed {summary['analyzed_files']} files")
-   print(f"Found {summary['total_findings']} findings")
-   print(f"Fixed {summary['fixed_findings']} findings")
+   print(f"已分析 {summary['analyzed_files']} 个文件")
+   print(f"发现 {summary['total_findings']} 个问题")
+   print(f"修复 {summary['fixed_findings']} 个问题")
    ```
 
-## Advanced Features
+## 高级功能
 
-### Auto-fix
+### 自动修复
 
-The framework can automatically fix common issues detected by the analyzers:
+框架可以自动修复分析器检测到的常见问题：
 
 ```python
 results = analyze_codebase(
@@ -144,9 +144,9 @@ results = analyze_codebase(
 )
 ```
 
-### Custom Analyzers
+### 自定义分析器
 
-You can specify which analyzers to use:
+您可以指定要使用的分析器：
 
 ```python
 results = analyze_codebase(
@@ -155,9 +155,9 @@ results = analyze_codebase(
 )
 ```
 
-### Custom Configuration
+### 自定义配置
 
-You can provide a custom configuration file:
+您可以提供自定义配置文件：
 
 ```python
 results = analyze_codebase(
@@ -166,14 +166,14 @@ results = analyze_codebase(
 )
 ```
 
-## For More Information
+## 更多信息
 
-- [Full Documentation](./README.md)
-- [Usage Guide](./USAGE.md)
-- [LLM Usage Guide](./LLM_USAGE_GUIDE.md)
-- [Auto-fix Guide](./AUTOFIX_GUIDE.md)
-- [Error Patterns](./ERROR_PATTERNS.md)
+- [完整文档](./README.md)
+- [使用指南](./USAGE.md)
+- [LLM使用指南](./LLM_USAGE_GUIDE.md)
+- [自动修复指南](./AUTOFIX_GUIDE.md)
+- [错误模式](./ERROR_PATTERNS.md)
 
-## Conclusion
+## 结论
 
-The ML Static Analysis Framework is a powerful tool for LLMs to analyze ML/DL codebases without running the full training pipeline. It can help detect common issues and suggest fixes, making it easier to optimize code and reduce GPU debugging time.
+ML静态分析框架是LLMs分析ML/DL代码库的强大工具，无需运行完整训练流程。它可以帮助检测常见问题并提供修复建议，使优化代码和减少GPU调试时间变得更加容易。

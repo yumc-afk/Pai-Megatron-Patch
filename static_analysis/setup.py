@@ -1,6 +1,5 @@
 #
 #
-#
 
 import os
 import sys
@@ -14,10 +13,10 @@ setup(
     version="0.1.0",
     author="Alibaba PAI Team",
     author_email="pai-team@alibaba-inc.com",
-    description="Static analysis framework for ML/DL codebases with LLM orchestration",
+    description="PyTorch LLM分布式训练静态分析框架，支持LLM编排",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/haoweiliang1996/Pai-Megatron-Patch",
+    url="https://github.com/yumc-afk/Pai-Megatron-Patch",
     packages=find_packages() + ["ml_static_analysis_lite"],
     classifiers=[
         "Programming Language :: Python :: 3",

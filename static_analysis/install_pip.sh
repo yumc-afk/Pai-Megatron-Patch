@@ -27,7 +27,7 @@ pip install torch numpy
 
 if [[ $version_choice == "1" ]]; then
     echo -e "${YELLOW}安装标准版...${NC}"
-    pip install git+https://github.com/haoweiliang1996/Pai-Megatron-Patch.git#subdirectory=static_analysis
+    pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis
     
     echo -e "${YELLOW}验证安装...${NC}"
     python3 -c "import ml_static_analysis; print('标准版已成功安装')"
@@ -35,7 +35,7 @@ if [[ $version_choice == "1" ]]; then
     echo -e "${GREEN}标准版安装完成!${NC}"
 else
     echo -e "${YELLOW}安装精简版...${NC}"
-    pip install git+https://github.com/haoweiliang1996/Pai-Megatron-Patch.git#subdirectory=static_analysis[lite]
+    pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis[lite]
     
     echo -e "${YELLOW}验证安装...${NC}"
     python3 -c "import ml_static_analysis_lite; print('精简版已成功安装')"
@@ -50,4 +50,4 @@ else
     echo -e "1. 运行 'ml-analyze-lite --help' 查看分析命令帮助"
 fi
 
-echo -e "2. 查看文档获取详细使用指南: https://github.com/haoweiliang1996/Pai-Megatron-Patch/tree/main/static_analysis"
+echo -e "2. 查看文档获取详细使用指南: https://github.com/yumc-afk/Pai-Megatron-Patch/tree/main/static_analysis"
