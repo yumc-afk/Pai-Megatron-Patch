@@ -264,7 +264,7 @@ The auto-fix feature can fix various types of issues:
 - **MyPy Fixes**: Missing type annotations, incorrect type annotations, missing imports for types
 - **PyTea Fixes**: Tensor shape checks, tensor dtype checks, tensor device checks
 - **PyAssistant Fixes**: Code style issues, best practices violations, performance optimizations
-- **TorchTyping Fixes**: Missing tensor type annotations, incorrect tensor type annotations
+- **JaxType Fixes**: Missing tensor type annotations, incorrect tensor type annotations, tensor shape constraints
 - **Pattern Analysis Fixes**: Thread safety issues, error handling issues, performance issues
 
 For more information, see the [Auto-Fix Guide](AUTOFIX_GUIDE.md).
