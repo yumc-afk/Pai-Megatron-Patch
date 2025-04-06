@@ -27,7 +27,7 @@ pip install torch numpy jinja2
 
 if [[ $version_choice == "1" ]]; then
     echo -e "${YELLOW}安装标准版...${NC}"
-    pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis
+    pip install -e .
     
     echo -e "${YELLOW}验证安装...${NC}"
     python3 -c "import ml_static_analysis; print('标准版已成功安装')"
@@ -35,7 +35,7 @@ if [[ $version_choice == "1" ]]; then
     echo -e "${GREEN}标准版安装完成!${NC}"
 else
     echo -e "${YELLOW}安装精简版...${NC}"
-    pip install git+https://github.com/yumc-afk/Pai-Megatron-Patch.git#subdirectory=static_analysis[lite]
+    pip install -e .[lite]
     
     echo -e "${YELLOW}验证安装...${NC}"
     python3 -c "import ml_static_analysis_lite; print('精简版已成功安装')"
