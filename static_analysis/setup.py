@@ -34,12 +34,12 @@ setup(
         "lite": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
-            "torchtyping>=0.1.0",
+            "jaxtyping>=0.2.20",
         ],
         "standard": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
-            "torchtyping>=0.1.0",
+            "jaxtyping>=0.2.20",
             "pylint>=2.17.0",
             "flake8>=6.0.0",
             "pytest>=7.0.0",
@@ -47,7 +47,7 @@ setup(
         "all": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
-            "torchtyping>=0.1.0",
+            "jaxtyping>=0.2.20",
             "pylint>=2.17.0",
             "flake8>=6.0.0",
             "pytest>=7.0.0",
