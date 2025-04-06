@@ -66,10 +66,11 @@ def verify_model_structure():
             config=config,
             trust_remote_code=True,
             # 确保张量数据类型正确
-            assert torch_dtype.dtype, f"Unexpected dtype: {{tensor.dtype}}"
             torch_dtype=torch.float16,  # 使用半精度减少内存使用
             device_map="auto"  # 自动处理设备映射
         )
+        
+        assert model.dtype == torch.float16, f"Unexpected dtype: {model.dtype}"
         
         print("\n===== 模型结构验证 =====")
         
