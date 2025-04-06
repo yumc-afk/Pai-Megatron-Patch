@@ -140,11 +140,12 @@ def verify_weight_conversion_standalone():
             args.hf_model_name,
             trust_remote_code=True,
             # 确保张量数据类型正确
-            assert torch_dtype.dtype, f"Unexpected dtype: {{tensor.dtype}}"
             torch_dtype=torch.float16,
             device_map="auto",
             low_cpu_mem_usage=True
         )
+        
+        assert model.dtype == torch.float16, f"Unexpected dtype: {model.dtype}"
         
         print("\n===== 权重验证 =====")
         
