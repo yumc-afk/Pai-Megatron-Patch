@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/haoweiliang1996/Pai-Megatron-Patch",
-    packages=find_packages(),
+    packages=find_packages() + ["ml_static_analysis_lite"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
@@ -35,19 +35,30 @@ setup(
         "lite": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
+            "torchtyping>=0.1.0",
         ],
         "standard": [
             "mypy>=1.0.0",
             "typing-extensions>=4.5.0",
+            "torchtyping>=0.1.0",
             "pylint>=2.17.0",
             "flake8>=6.0.0",
             "pytest>=7.0.0",
+        ],
+        "all": [
+            "mypy>=1.0.0",
+            "typing-extensions>=4.5.0",
+            "torchtyping>=0.1.0",
+            "pylint>=2.17.0",
+            "flake8>=6.0.0",
+            "pytest>=7.0.0",
+            "crosshair-tool>=0.0.31",
         ],
     },
     entry_points={
         "console_scripts": [
             "ml-analyze=ml_static_analysis.cli.main:main",
-            "ml-analyze-lite=ml_static_analysis.cli.main:main_lite",
+            "ml-analyze-lite=ml_static_analysis_lite:analyze_codebase",
         ],
     },
 )
